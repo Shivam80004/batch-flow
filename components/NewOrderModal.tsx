@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react'
 import {
-  LoadScript,
+  useJsApiLoader,
   Autocomplete,
   Libraries,
 } from '@react-google-maps/api'
@@ -52,6 +52,11 @@ const EMPTY_FORM: FormState = {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function NewOrderModal({ onClose, onSaved }: NewOrderModalProps) {
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: MAPS_API_KEY,
+    libraries: LIBRARIES,
+  })
+
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -193,7 +198,7 @@ export default function NewOrderModal({ onClose, onSaved }: NewOrderModalProps) 
         </div>
 
         {/* Body */}
-        <LoadScript googleMapsApiKey={MAPS_API_KEY} libraries={LIBRARIES}>
+        {isLoaded ? (<>
           <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
             {/* Two-column grid — collapses to single column on mobile */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -360,7 +365,7 @@ export default function NewOrderModal({ onClose, onSaved }: NewOrderModalProps) 
               )}
             </button>
           </div>
-        </LoadScript>
+        </>) : null}
       </div>
     </div>
   )

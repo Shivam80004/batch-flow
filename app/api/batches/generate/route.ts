@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/utils/supabase/client'
-import { optimizeRouteSequence, parsePoint } from '@/utils/routing'
+import { createClient } from '@supabase/supabase-js'
+import { parsePoint } from '@/utils/routing'
+
+// Server-side admin client — bypasses RLS, safe for API routes only
+function getAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  return createClient(url, serviceKey, { auth: { persistSession: false } })
+}
 
 export async function POST(request: Request) {
   try {
@@ -10,59 +17,49 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing tenantId' }, { status: 400 })
     }
 
+    const supabase = getAdminClient()
+
     // 1. Generate batches via RPC (groups orders by proximity/time)
     const { data: generatedBatches, error: rpcError } = await supabase.rpc('generate_smart_batches', {
       target_tenant_id: tenantId
     })
 
     if (rpcError) {
-      return NextResponse.json({ error: rpcError.message }, { status: 400 })
+      console.error('[generate] RPC error:', rpcError)
+      return NextResponse.json({ error: rpcError.message, details: rpcError }, { status: 400 })
     }
 
-    // 2. Optimized Routing Integration:
-    // After grouping, we need to sequence the drop-offs inside each batch optimally.
+    // 2. Fetch orders assigned to newly created batches for reference
     try {
-      // Fetch all orders that were just assigned to batches
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
         .select('id, batch_id, pickup_pt, drop_pt')
         .eq('tenant_id', tenantId)
         .eq('status', 'pending')
-        .not('batch_id', 'is', null);
+        .not('batch_id', 'is', null)
 
-      if (ordersError) throw ordersError;
+      if (ordersError) throw ordersError
 
-      // Group orders by their batch ID
-      const batchesMap: Record<string, any[]> = {};
-      orders.forEach(order => {
-        if (!batchesMap[order.batch_id]) batchesMap[order.batch_id] = [];
-        batchesMap[order.batch_id].push(order);
-      });
+      // Group orders by batch ID
+      const batchesMap: Record<string, any[]> = {}
+      orders.forEach((order: any) => {
+        if (!batchesMap[order.batch_id]) batchesMap[order.batch_id] = []
+        batchesMap[order.batch_id].push(order)
+      })
 
-      // For each batch, run the Nearest Neighbor TSP algorithm
+      // Note: Optimization is handled in-memory by the RiderPage for robustness.
       for (const batchId in batchesMap) {
-        const batchOrders = batchesMap[batchId];
-        if (batchOrders.length === 0) continue;
-
-        // Pickup is usually the restaurant (shared startPoint for the batch sequence)
-        const startPoint = parsePoint(batchOrders[0].pickup_pt);
-
-        // Convert orders to simplified DeliveryOrder interface for the algorithm
-        const deliveryPool = batchOrders.map(o => ({
-          id: o.id,
-          dropLat: parsePoint(o.drop_pt).lat,
-          dropLng: parsePoint(o.drop_pt).lng
-        }));
-
-        // Note: Optimization is handled in-memory by the UI (RiderPage) for robustness 
-        // against missing database columns like 'sequence_order'.
+        const batchOrders = batchesMap[batchId]
+        if (batchOrders.length === 0) continue
+        // Route sequencing is done client-side via calculateOptimizedSequence()
       }
     } catch (seqError) {
-      console.error('Routing optimization pre-check failed:', seqError);
+      console.error('[generate] Post-batch fetch failed:', seqError)
     }
 
-    return NextResponse.json({ message: 'Batches generated and optimized successfully', data: generatedBatches })
+    return NextResponse.json({ message: 'Batches generated successfully', data: generatedBatches })
   } catch (error) {
+    console.error('[generate] Unhandled error:', error)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }
