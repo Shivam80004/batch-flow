@@ -64,7 +64,6 @@ function toBatchOrder(row: any): BatchOrder & { business_name?: string; business
     dropoff_address_text: row.dropoff_address_text || '',
     status: row.status || 'pending',
     business_name: row.tenants?.name || '',
-    business_phone: row.tenants?.phone || '',
   }
 }
 
@@ -145,7 +144,7 @@ export default function RiderPage({ params }: PageProps) {
 
       const { data, error } = await supabase
         .from('orders')
-        .select('*, tenants(name, phone)')
+        .select('*, tenants(name)')
         .eq('batch_id', batch_id)
 
       if (error) {

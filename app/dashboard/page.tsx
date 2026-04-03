@@ -22,7 +22,7 @@ export default function Dashboard() {
     const init = async () => {
       const { data: { user }, error: authError } = await supabase.auth.getUser()
       if (authError || !user) {
-        router.push('/dashboard')
+        router.push('/login')
         return
       }
 
