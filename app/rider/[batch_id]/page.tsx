@@ -11,6 +11,8 @@ import {
   MapPin,
   ChevronRight,
   Layers,
+  Building2,
+  Phone,
 } from 'lucide-react'
 import { supabase } from '@/utils/supabase/client'
 import { parsePoint } from '@/utils/routing'
@@ -49,7 +51,7 @@ function safeParsePoint(pt: string): Coordinate {
 }
 
 /** Transform a raw Supabase order row into a BatchOrder */
-function toBatchOrder(row: any): BatchOrder {
+function toBatchOrder(row: any): BatchOrder & { business_name?: string; business_phone?: string } {
   const pickup = safeParsePoint(row.pickup_pt)
   const drop = safeParsePoint(row.drop_pt)
   return {
@@ -61,6 +63,8 @@ function toBatchOrder(row: any): BatchOrder {
     pickup_address_text: row.pickup_address_text || '',
     dropoff_address_text: row.dropoff_address_text || '',
     status: row.status || 'pending',
+    business_name: row.tenants?.name || '',
+    business_phone: row.tenants?.phone || '',
   }
 }
 
@@ -138,10 +142,10 @@ export default function RiderPage({ params }: PageProps) {
     async function load() {
       if (!batch_id) return
       setLoading(true)
-      
+
       const { data, error } = await supabase
         .from('orders')
-        .select('*')
+        .select('*, tenants(name, phone)')
         .eq('batch_id', batch_id)
 
       if (error) {
@@ -162,7 +166,7 @@ export default function RiderPage({ params }: PageProps) {
         }
 
         const hasPending = orders.some((o) => o.status === 'pending' || o.status === 'batched')
-        
+
         // If we're already in delivery phase, optimize once on load
         if (!hasPending) {
           setCurrentPhase('DELIVERING')
@@ -448,21 +452,21 @@ export default function RiderPage({ params }: PageProps) {
         {locationStatus === 'denied' && (
           <div className="absolute top-16 left-4 right-4 z-20 bg-red-500/10 backdrop-blur-lg border border-red-500/20 rounded-2xl p-3 flex items-center gap-3 animate-[fadeSlideUp_0.5s_ease-out]">
             <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
-               <MapPin className="w-4 h-4 text-red-500" />
+              <MapPin className="w-4 h-4 text-red-500" />
             </div>
             <div className="flex-1">
-               <p className="text-[10px] font-black text-red-400 uppercase tracking-widest">Location Disabled</p>
-               <p className="text-[10px] text-zinc-400 leading-tight">
-                 Proximity sorting and live tracking are restricted.
-                 <button 
-                   onClick={() => alert('UNBLOCK GPS:\n1. Click the Tune/Lock icon to the left of the URL.\n2. Set Location to "Allow".\n3. Click Retry.')}
-                   className="ml-1 text-white underline underline-offset-2 hover:text-red-300 transition-colors"
-                 >
-                   How to fix?
-                 </button>
-               </p>
+              <p className="text-[10px] font-black text-red-400 uppercase tracking-widest">Location Disabled</p>
+              <p className="text-[10px] text-zinc-400 leading-tight">
+                Proximity sorting and live tracking are restricted.
+                <button
+                  onClick={() => alert('UNBLOCK GPS:\n1. Click the Tune/Lock icon to the left of the URL.\n2. Set Location to "Allow".\n3. Click Retry.')}
+                  className="ml-1 text-white underline underline-offset-2 hover:text-red-300 transition-colors"
+                >
+                  How to fix?
+                </button>
+              </p>
             </div>
-            <button 
+            <button
               onClick={() => window.location.reload()}
               className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-[9px] font-black uppercase transition-colors"
             >
@@ -490,18 +494,16 @@ export default function RiderPage({ params }: PageProps) {
           <div className="flex items-center gap-1">
             <button
               onClick={() => { setCurrentPhase('COLLECTING'); setActiveIndex(0); swiperRef.current?.slideTo(0, 300) }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
-                currentPhase === 'COLLECTING'
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${currentPhase === 'COLLECTING'
                   ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
                   : 'text-zinc-600 hover:text-zinc-400'
-              }`}
+                }`}
             >
               <Package className="w-3 h-3" />
               Pickup
               {pendingPickups.length > 0 && (
-                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-black ${
-                  currentPhase === 'COLLECTING' ? 'bg-amber-500/25 text-amber-300' : 'bg-zinc-800 text-zinc-500'
-                }`}>
+                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-black ${currentPhase === 'COLLECTING' ? 'bg-amber-500/25 text-amber-300' : 'bg-zinc-800 text-zinc-500'
+                  }`}>
                   {pendingPickups.length}
                 </span>
               )}
@@ -509,18 +511,16 @@ export default function RiderPage({ params }: PageProps) {
 
             <button
               onClick={() => { setCurrentPhase('DELIVERING'); setActiveIndex(0); swiperRef.current?.slideTo(0, 300) }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
-                currentPhase === 'DELIVERING'
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${currentPhase === 'DELIVERING'
                   ? 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30'
                   : 'text-zinc-600 hover:text-zinc-400'
-              }`}
+                }`}
             >
               <Truck className="w-3 h-3" />
               Deliver
               {deliveryQueue.length > 0 && (
-                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-black ${
-                  currentPhase === 'DELIVERING' ? 'bg-indigo-500/25 text-indigo-300' : 'bg-zinc-800 text-zinc-500'
-                }`}>
+                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-black ${currentPhase === 'DELIVERING' ? 'bg-indigo-500/25 text-indigo-300' : 'bg-zinc-800 text-zinc-500'
+                  }`}>
                   {deliveryQueue.length}
                 </span>
               )}
@@ -540,13 +540,13 @@ export default function RiderPage({ params }: PageProps) {
         {activeList.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center p-10 text-center animate-[fadeSlideUp_0.5s_ease-out]">
             <div className="w-16 h-16 bg-zinc-900 rounded-3xl border border-white/5 flex items-center justify-center mb-4">
-               <Layers className="w-8 h-8 text-zinc-700" />
+              <Layers className="w-8 h-8 text-zinc-700" />
             </div>
             <p className="text-zinc-400 font-bold tracking-tight">No Active Tasks</p>
             <p className="mt-1 text-zinc-600 text-xs max-w-[200px]">
               All items for this batch have been processed or none were assigned.
             </p>
-            <button 
+            <button
               onClick={() => window.location.reload()}
               className="mt-6 px-6 py-2.5 bg-zinc-900 border border-white/5 rounded-full text-xs font-bold hover:bg-zinc-800 active:scale-95 transition-all"
             >
@@ -584,24 +584,32 @@ export default function RiderPage({ params }: PageProps) {
                     <div className="space-y-3 relative z-10">
                       <div className="flex items-center justify-between">
                         <span
-                          className={`text-[10px] font-black uppercase tracking-widest ${
-                            isCollecting ? 'text-amber-400' : 'text-indigo-400'
-                          }`}
+                          className={`text-[10px] font-black uppercase tracking-widest ${isCollecting ? 'text-amber-400' : 'text-indigo-400'
+                            }`}
                         >
                           {isCollecting ? 'Pickup' : 'Drop-off'} {idx + 1} of{' '}
                           {activeList.length}
                         </span>
                         <span className="text-[10px] font-mono text-zinc-600">
-                          {order.id.slice(0, 8)}
+                          #{order.id.slice(-4).toUpperCase()}
                         </span>
                       </div>
+
+                      {/* Business name (pickup phase only) */}
+                      {isCollecting && (order as any).business_name && (
+                        <div className="flex items-center gap-2">
+                          <Building2 className="w-4 h-4 text-amber-400 shrink-0" />
+                          <p className="text-lg font-black text-white tracking-tight leading-none">
+                            {(order as any).business_name}
+                          </p>
+                        </div>
+                      )}
 
                       {/* Address */}
                       <div className="flex items-start gap-3">
                         <MapPin
-                          className={`w-5 h-5 mt-0.5 shrink-0 ${
-                            isCollecting ? 'text-amber-400' : 'text-indigo-400'
-                          }`}
+                          className={`w-5 h-5 mt-0.5 shrink-0 ${isCollecting ? 'text-amber-400' : 'text-indigo-400'
+                            }`}
                         />
                         <h2 className="text-xl font-black text-white leading-tight tracking-tight">
                           {address || fallback}
@@ -623,20 +631,29 @@ export default function RiderPage({ params }: PageProps) {
 
                     {/* Action buttons */}
                     <div className="space-y-2.5 pt-3 relative z-10">
-                      {/* Navigate */}
-                      <a
-                        href={getNavUrl(order)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`flex items-center justify-center gap-2.5 w-full py-4 rounded-2xl font-black text-base active:scale-[0.97] transition-all shadow-lg ${
-                          isCollecting
-                            ? 'bg-amber-500 text-zinc-950 shadow-amber-500/25'
-                            : 'bg-indigo-600 text-white shadow-indigo-600/25'
-                        }`}
-                      >
-                        <ExternalLink className="w-5 h-5" />
-                        NAVIGATE
-                      </a>
+                      {/* Navigate + Call row */}
+                      <div className={`flex gap-2 ${isCollecting && (order as any).business_phone ? 'flex-row' : ''}`}>
+                        <a
+                          href={getNavUrl(order)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`flex items-center justify-center gap-2.5 flex-1 py-4 rounded-2xl font-black text-base active:scale-[0.97] transition-all shadow-lg ${isCollecting
+                              ? 'bg-amber-500 text-zinc-950 shadow-amber-500/25'
+                              : 'bg-indigo-600 text-white shadow-indigo-600/25'
+                            }`}
+                        >
+                          <ExternalLink className="w-5 h-5" />
+                          NAVIGATE
+                        </a>
+                        {isCollecting && (order as any).business_phone && (
+                          <a
+                            href={`tel:${(order as any).business_phone}`}
+                            className="flex items-center justify-center gap-2 px-4 py-4 rounded-2xl font-black text-sm bg-zinc-800 border border-white/10 text-zinc-200 active:scale-[0.97] transition-all"
+                          >
+                            <Phone className="w-5 h-5" />
+                          </a>
+                        )}
+                      </div>
 
                       {/* Swipe-to-confirm or button */}
                       {confirmingId === order.id ? (

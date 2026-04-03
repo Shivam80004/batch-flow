@@ -1,34 +1,66 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { PlusCircle, RefreshCw, Layers, ClipboardList, CheckCircle2, ArrowRight } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { PlusCircle, RefreshCw, Layers, ClipboardList, CheckCircle2, ArrowRight, Building2, PackagePlus } from 'lucide-react'
 import { supabase } from '@/utils/supabase/client'
+import NewOrderModal from '@/components/NewOrderModal'
 
-// Hardcoded tenant_id for testing purposes
-const TEST_TENANT_ID = 'be0d85ef-54cd-4b34-8c25-8bc4780604d8'
+const shortId = (id: string) => `#${id.slice(-4).toUpperCase()}`
 
 export default function Dashboard() {
+  const router = useRouter()
   const [orders, setOrders] = useState<any[]>([])
   const [batches, setBatches] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
+  const [activeTenantId, setActiveTenantId] = useState<string | null>(null)
+  const [businessName, setBusinessName] = useState<string | null>(null)
+  const [showOrderModal, setShowOrderModal] = useState(false)
+
+  useEffect(() => {
+    const init = async () => {
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      if (authError || !user) {
+        router.push('/dashboard')
+        return
+      }
+
+      const { data: tenant, error: tenantError } = await supabase
+        .from('tenants')
+        .select('id, name')
+        .eq('owner_id', user.id)
+        .single()
+
+      if (tenantError || !tenant) {
+        console.error('Error fetching tenant:', tenantError)
+        setLoading(false)
+        return
+      }
+
+      setActiveTenantId(tenant.id)
+      setBusinessName(tenant.name)
+    }
+
+    init()
+  }, [router])
 
   const fetchData = async () => {
+    if (!activeTenantId) return
     setLoading(true)
     try {
-      // Fetch pending orders
       const { data: pendingOrders, error: ordersError } = await supabase
         .from('orders')
-        .select('*')
+        .select('*, tenants(name)')
         .eq('status', 'pending')
-        .eq('tenant_id', TEST_TENANT_ID)
+        .eq('tenant_id', activeTenantId)
 
-      // Fetch active batches
       const { data: activeBatches, error: batchesError } = await supabase
         .from('batches')
-        .select('*')
+        .select('*, tenants(name)')
         .eq('status', 'active')
-        .eq('tenant_id', TEST_TENANT_ID)
+        .eq('tenant_id', activeTenantId)
+        .order('created_at', { ascending: true })
 
       if (ordersError) console.error('Error fetching orders:', ordersError)
       if (batchesError) console.error('Error fetching batches:', batchesError)
@@ -43,16 +75,19 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    fetchData()
-  }, [])
+    if (activeTenantId) {
+      fetchData()
+    }
+  }, [activeTenantId])
 
   const generateBatches = async () => {
+    if (!activeTenantId) return
     setGenerating(true)
     try {
       const response = await fetch('/api/batches/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenantId: TEST_TENANT_ID }),
+        body: JSON.stringify({ tenantId: activeTenantId }),
       })
 
       if (!response.ok) {
@@ -60,7 +95,6 @@ export default function Dashboard() {
         throw new Error(errorData.error || 'Failed to generate batches')
       }
 
-      // Refresh data after generation
       await fetchData()
     } catch (error) {
       alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -72,24 +106,42 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-8">
       <div className="max-w-6xl mx-auto space-y-8">
+
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800">
           <div>
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Dashboard</h1>
-            <p className="text-zinc-500 dark:text-zinc-400">Managing logistics for Tenant ID: <span className="font-mono text-xs bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded">{TEST_TENANT_ID}</span></p>
+            <div className="flex items-center gap-2 mb-1">
+              <Building2 className="w-5 h-5 text-indigo-500" />
+              <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
+                {businessName || 'Dashboard'}
+              </h1>
+            </div>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              Logistics operations overview
+            </p>
           </div>
-          <button
-            onClick={generateBatches}
-            disabled={generating}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl font-medium transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
-          >
-            {generating ? (
-              <RefreshCw className="w-5 h-5 animate-spin" />
-            ) : (
-              <PlusCircle className="w-5 h-5" />
-            )}
-            {generating ? 'Generating...' : 'Generate Optimal Batches'}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              id="add-order-btn"
+              onClick={() => setShowOrderModal(true)}
+              className="flex items-center justify-center gap-2 px-5 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-medium transition-all border border-zinc-700 active:scale-95"
+            >
+              <PackagePlus className="w-5 h-5 text-amber-400" />
+              Add Order
+            </button>
+            <button
+              onClick={generateBatches}
+              disabled={generating}
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl font-medium transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
+            >
+              {generating ? (
+                <RefreshCw className="w-5 h-5 animate-spin" />
+              ) : (
+                <PlusCircle className="w-5 h-5" />
+              )}
+              {generating ? 'Generating...' : 'Generate Optimal Batches'}
+            </button>
+          </div>
         </div>
 
         {/* Stats Grid */}
@@ -126,22 +178,42 @@ export default function Dashboard() {
                 <table className="w-full text-left">
                   <thead className="bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider">
                     <tr>
-                      <th className="px-6 py-4 font-semibold">ID</th>
+                      <th className="px-6 py-4 font-semibold">Order</th>
+                      <th className="px-6 py-4 font-semibold">Sender → Receiver</th>
                       <th className="px-6 py-4 font-semibold">Status</th>
-                      <th className="px-6 py-4 font-semibold">Created At</th>
+                      <th className="px-6 py-4 font-semibold">Date</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                     {orders.length === 0 ? (
                       <tr>
-                        <td colSpan={3} className="px-6 py-12 text-center text-zinc-400 italic">
-                          No pending orders found.
+                        <td colSpan={4} className="px-6 py-12 text-center text-zinc-400 italic">
+                          No pending orders — click &ldquo;Add Order&rdquo; to create one.
                         </td>
                       </tr>
                     ) : (
                       orders.map((order) => (
                         <tr key={order.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
-                          <td className="px-6 py-4 text-sm font-mono text-zinc-600 dark:text-zinc-400">{order.id.slice(0, 8)}...</td>
+                          <td className="px-6 py-4">
+                            <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200">Order {shortId(order.id)}</p>
+                            <p className="text-xs text-zinc-400 mt-0.5">{order.tenants?.name || businessName}</p>
+                          </td>
+                          <td className="px-6 py-4">
+                            {order.sender_name ? (
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                                  <span className="text-amber-500">↑</span> {order.sender_name}
+                                  {order.sender_phone && <span className="font-normal text-zinc-400"> · {order.sender_phone}</span>}
+                                </span>
+                                <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                                  <span className="text-indigo-400">↓</span> {order.receiver_name}
+                                  {order.receiver_phone && <span className="font-normal text-zinc-400"> · {order.receiver_phone}</span>}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-zinc-400">—</span>
+                            )}
+                          </td>
                           <td className="px-6 py-4">
                             <span className="px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs rounded-full font-medium">
                               {order.status}
@@ -170,9 +242,9 @@ export default function Dashboard() {
                 <table className="w-full text-left">
                   <thead className="bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider">
                     <tr>
-                      <th className="px-6 py-4 font-semibold">ID</th>
+                      <th className="px-6 py-4 font-semibold">Batch</th>
                       <th className="px-6 py-4 font-semibold">Status</th>
-                      <th className="px-6 py-4 font-semibold">Created At</th>
+                      <th className="px-6 py-4 font-semibold">Date</th>
                       <th className="px-6 py-4 font-semibold text-right">Actions</th>
                     </tr>
                   </thead>
@@ -184,9 +256,12 @@ export default function Dashboard() {
                         </td>
                       </tr>
                     ) : (
-                      batches.map((batch) => (
+                      batches.map((batch, idx) => (
                         <tr key={batch.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
-                          <td className="px-6 py-4 text-sm font-mono text-zinc-600 dark:text-zinc-400">{batch.id.slice(0, 8)}...</td>
+                          <td className="px-6 py-4">
+                            <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200">Run #{idx + 1}</p>
+                            <p className="text-xs font-mono text-zinc-400 mt-0.5">{shortId(batch.id)}</p>
+                          </td>
                           <td className="px-6 py-4">
                             <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs rounded-full font-medium flex items-center gap-1 w-fit">
                               <CheckCircle2 className="w-3 h-3" />
@@ -217,6 +292,14 @@ export default function Dashboard() {
           </section>
         </div>
       </div>
+
+      {/* New Order Modal */}
+      {showOrderModal && (
+        <NewOrderModal
+          onClose={() => setShowOrderModal(false)}
+          onSaved={fetchData}
+        />
+      )}
     </div>
   )
 }
