@@ -60,8 +60,8 @@ function toBatchOrder(row: any): BatchOrder & { business_name?: string; business
     pickup_lng: pickup.lng,
     drop_lat: drop.lat,
     drop_lng: drop.lng,
-    pickup_address_text: row.pickup_address_text || '',
-    dropoff_address_text: row.dropoff_address_text || '',
+    pickup_address_text: row.pickup_address || '',
+    dropoff_address_text: row.drop_address || '',
     status: row.status || 'pending',
     business_name: row.tenants?.name || '',
   }

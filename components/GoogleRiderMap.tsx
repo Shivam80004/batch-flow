@@ -55,6 +55,7 @@ export default function GoogleRiderMap({
   const initializedRef = useRef(false)
   const lastDirectionsKeyRef = useRef<string>('')
 
+  const [mapReady, setMapReady] = useState(false)
   const [routeInfo, setRouteInfo] = useState<{ duration: string; distance: string } | null>(null)
 
   // ── Custom pin builders ────────────────────────────────────────────────
@@ -112,14 +113,15 @@ export default function GoogleRiderMap({
         styles: MAP_ID ? undefined : DARK_MAP_STYLES,
         backgroundColor: '#1a1a2e',
       })
+      setMapReady(true)
     })
-  }, [userLocation])
+  }, [])
 
   // ── Update markers & bounds ────────────────────────────────────────────
 
   useEffect(() => {
     const map = mapRef.current
-    if (!map) return
+    if (!map || !mapReady) return
 
     markersRef.current.forEach(m => (m.map = null))
     markersRef.current = []
@@ -158,37 +160,49 @@ export default function GoogleRiderMap({
       }
     })
 
-    if (hasPoints) {
+    // Only fit bounds on first map readiness or when activeTarget changes
+    if (hasPoints && !lastDirectionsKeyRef.current) {
       map.fitBounds(bounds, { top: 30, right: 40, bottom: 30, left: 40 })
-      const listener = google.maps.event.addListener(map, 'idle', () => {
-        const z = map.getZoom()
-        if (z && z > 16) map.setZoom(16)
-        google.maps.event.removeListener(listener)
-      })
     }
-  }, [activeTarget, remainingStops, userLocation, createActivePin, createNumberedPin, createUserPin])
+  }, [mapReady, activeTarget?.id, remainingStops.length, createActivePin, createNumberedPin, createUserPin])
 
   // ── Directions API: real driving route for the active leg ──────────────
 
   useEffect(() => {
     const map = mapRef.current
-    if (!map) return
-
-    // Clear previous route
-    if (directionsRendererRef.current) {
-      directionsRendererRef.current.setMap(null)
-      directionsRendererRef.current = null
-    }
-
-    if (!userLocation || userLocation.lat === 0 || !activeTarget || activeTarget.lat === 0) {
+    if (!map || !mapReady || !userLocation || userLocation.lat === 0 || !activeTarget || activeTarget.lat === 0) {
+      if (directionsRendererRef.current) directionsRendererRef.current.setMap(null)
       setRouteInfo(null)
       return
     }
 
-    // Only re-fetch if origin/dest moved significantly (~100m)
-    const newKey = `${userLocation.lat.toFixed(3)},${userLocation.lng.toFixed(3)}->${activeTarget.id}`
-    if (newKey === lastDirectionsKeyRef.current) return
-    lastDirectionsKeyRef.current = newKey
+    // Use a persistent DirectionsRenderer
+    if (!directionsRendererRef.current) {
+      directionsRendererRef.current = new google.maps.DirectionsRenderer({
+        map,
+        suppressMarkers: true,
+        polylineOptions: {
+          strokeColor: phase === 'COLLECTING' ? '#f59e0b' : '#6366f1',
+          strokeOpacity: 0.85,
+          strokeWeight: 5,
+        },
+      })
+    } else {
+      directionsRendererRef.current.setMap(map)
+      directionsRendererRef.current.setOptions({
+        polylineOptions: {
+          strokeColor: phase === 'COLLECTING' ? '#f59e0b' : '#6366f1',
+          strokeOpacity: 0.85,
+          strokeWeight: 5,
+        }
+      })
+    }
+
+    // Only re-fetch if destiny/origin changed enough to matter
+    const newKey = `${phase}-${activeTarget.id}`
+    const locKey = userLocation.lat.toFixed(4) + userLocation.lng.toFixed(4)
+    if (newKey === lastDirectionsKeyRef.current?.split('|')[0] && locKey === lastDirectionsKeyRef.current?.split('|')[1]) return
+    lastDirectionsKeyRef.current = `${newKey}|${locKey}`
 
     const directionsService = new google.maps.DirectionsService()
     directionsService.route(
@@ -198,19 +212,8 @@ export default function GoogleRiderMap({
         travelMode: google.maps.TravelMode.DRIVING,
       },
       (result, status) => {
-        if (status === google.maps.DirectionsStatus.OK && result) {
-          const renderer = new google.maps.DirectionsRenderer({
-            map,
-            directions: result,
-            suppressMarkers: true,
-            polylineOptions: {
-              strokeColor: phase === 'COLLECTING' ? '#f59e0b' : '#6366f1',
-              strokeOpacity: 0.85,
-              strokeWeight: 5,
-            },
-          })
-          directionsRendererRef.current = renderer
-
+        if (status === google.maps.DirectionsStatus.OK && result && directionsRendererRef.current) {
+          directionsRendererRef.current.setDirections(result)
           const leg = result.routes[0]?.legs[0]
           if (leg) {
             setRouteInfo({
@@ -220,17 +223,16 @@ export default function GoogleRiderMap({
           }
         } else {
           console.warn('Directions request failed:', status)
-          setRouteInfo(null)
         }
       }
     )
-  }, [activeTarget?.id, userLocation?.lat, userLocation?.lng, phase])
+  }, [mapReady, activeTarget?.id, activeTarget?.lat, activeTarget?.lng, userLocation?.lat, userLocation?.lng, phase])
 
   // ── Dashed polyline for remaining stops (lightweight overview) ─────────
 
   useEffect(() => {
     const map = mapRef.current
-    if (!map) return
+    if (!map || !mapReady) return
 
     if (remainingPolyRef.current) {
       remainingPolyRef.current.setMap(null)
@@ -267,7 +269,7 @@ export default function GoogleRiderMap({
       })
       remainingPolyRef.current = poly
     }
-  }, [activeTarget, remainingStops, phase])
+  }, [mapReady, activeTarget?.id, remainingStops.length, phase])
 
   // ── Render ─────────────────────────────────────────────────────────────
 
