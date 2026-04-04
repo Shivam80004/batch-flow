@@ -32,16 +32,33 @@ export default function LoginPage() {
         setError(null)
         setLoading(true)
 
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        })
+        try {
+            const { error: signInError } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            })
 
-        if (signInError) {
-            setError('Invalid credentials. Please check your email and password.')
+            if (signInError) {
+                // Determine if it is a common error or something else
+                if (signInError.message.toLowerCase().includes('email not confirmed')) {
+                    setError('Please check your email to confirm your account before signing in.')
+                } else if (signInError.message.toLowerCase().includes('invalid login credentials')) {
+                    setError('Invalid email or password. Please try again.')
+                } else {
+                    setError(signInError.message)
+                }
+                setLoading(false)
+            } else {
+                // Ensure the session is synchronized before redirecting
+                // router.refresh() clears the Next.js client-side router cache
+                router.refresh()
+                // Using push for smoother experience, but if it still "sometimes works", 
+                // we would switch to window.location.href
+                router.push('/dashboard')
+            }
+        } catch (err: any) {
+            setError(err.message || 'An unexpected error occurred.')
             setLoading(false)
-        } else {
-            router.push('/dashboard')
         }
     }
 

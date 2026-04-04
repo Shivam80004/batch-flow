@@ -42,6 +42,8 @@ export default function Register() {
                 throw tenantError;
             }
 
+            // Ensure the session is synchronized
+            router.refresh();
             router.push('/dashboard');
         } catch (err: any) {
             setError(err.message || 'An error occurred during registration.');

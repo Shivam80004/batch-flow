@@ -21,7 +21,19 @@ export default function Dashboard() {
   useEffect(() => {
     const init = async () => {
       const { data: { user }, error: authError } = await supabase.auth.getUser()
+      let activeUser = user
+
       if (authError || !user) {
+        // Double check session to ensure it's not a race condition
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) {
+          router.push('/login')
+          return
+        }
+        activeUser = session.user
+      }
+
+      if (!activeUser) {
         router.push('/login')
         return
       }
@@ -29,7 +41,7 @@ export default function Dashboard() {
       const { data: tenant, error: tenantError } = await supabase
         .from('tenants')
         .select('id, name')
-        .eq('owner_id', user.id)
+        .eq('owner_id', activeUser.id)
         .single()
 
       if (tenantError || !tenant) {
