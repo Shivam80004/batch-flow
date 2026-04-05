@@ -285,7 +285,7 @@ export default function GoogleRiderMap({
       <div ref={mapContainerRef} className="w-full h-full" />
 
       {/* Phase indicator */}
-      <div className="absolute top-4 left-4 z-10">
+      {/* <div className="absolute top-4 left-4 z-10">
         <div className={`
           px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest
           backdrop-blur-md border
@@ -296,11 +296,11 @@ export default function GoogleRiderMap({
         `}>
           {phase === 'COLLECTING' ? '📦 Collecting' : '🚀 Delivering'}
         </div>
-      </div>
+      </div> */}
 
       {/* ETA / Distance chip */}
       {routeInfo && (
-        <div className="absolute top-4 right-4 z-10">
+        <div className="absolute top-6 right-4 z-10">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md bg-zinc-900/70 border border-white/10">
             <span className="text-[10px] font-black text-white">{routeInfo.duration}</span>
             <span className="w-px h-3 bg-white/20" />

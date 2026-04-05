@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback, use } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   CheckCircle,
+  ChevronLeft,
   ExternalLink,
   ArrowRight,
   Loader2,
@@ -73,6 +75,7 @@ function toBatchOrder(row: any): BatchOrder & { business_name?: string; business
 
 export default function RiderPage({ params }: PageProps) {
   const { batch_id } = use(params)
+  const router = useRouter()
 
   // ── Core state ─────────────────────────────────────────────────────────
 
@@ -368,33 +371,35 @@ export default function RiderPage({ params }: PageProps) {
 
   if (batchComplete) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-zinc-950 p-6 overflow-hidden">
-        {/* Animated background glow */}
-        <div className="absolute w-80 h-80 bg-emerald-500/15 blur-[140px] rounded-full animate-pulse" />
-        <div className="absolute w-56 h-56 bg-indigo-500/10 blur-[100px] rounded-full animate-pulse delay-500" />
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center font-sans">
+        <div className="w-full max-w-md h-screen md:h-[850px] md:max-h-[90vh] md:rounded-[40px] md:border-[8px] md:border-zinc-900 overflow-hidden relative shadow-2xl flex flex-col bg-zinc-950 p-6">
+          {/* Animated background glow */}
+          <div className="absolute w-80 h-80 bg-emerald-500/15 blur-[140px] rounded-full animate-pulse" />
+          <div className="absolute w-56 h-56 bg-indigo-500/10 blur-[100px] rounded-full animate-pulse delay-500" />
 
-        <div className="relative flex flex-col items-center text-center z-10 animate-[fadeSlideUp_0.8s_ease-out_forwards]">
-          <div className="w-28 h-28 bg-emerald-500 rounded-full flex items-center justify-center mb-8 shadow-2xl shadow-emerald-500/40 border-4 border-emerald-400/20">
-            <CheckCircle className="w-16 h-16 text-white" />
+          <div className="relative flex flex-col items-center justify-center h-full text-center z-10 animate-[fadeSlideUp_0.8s_ease-out_forwards]">
+            <div className="w-28 h-28 bg-emerald-500/10 border border-emerald-500/30 rounded-full flex items-center justify-center mb-8 glow-emerald">
+              <CheckCircle className="w-12 h-12 text-emerald-400" />
+            </div>
+
+            <h1 className="text-3xl font-bold text-white mb-3 tracking-tighter">
+              Batch Complete
+            </h1>
+            <p className="text-zinc-400 mb-3 max-w-[240px] text-sm">
+              All routes finished successfully. Outstanding work.
+            </p>
+            <p className="text-zinc-600 mb-10 text-xs font-mono">
+              ID: {batch_id.slice(0, 8).toUpperCase()}
+            </p>
+
+            <button
+              onClick={() => (window.location.href = '/dashboard')}
+              className="px-8 py-4 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-2xl font-semibold text-sm transition-all flex items-center justify-center gap-3 backdrop-blur-md"
+            >
+              Dashboard Return
+              <ArrowRight className="w-4 h-4 text-zinc-400" />
+            </button>
           </div>
-
-          <h1 className="text-4xl font-black text-white mb-3 tracking-tighter">
-            BATCH COMPLETE
-          </h1>
-          <p className="text-zinc-400 mb-3 max-w-xs text-lg font-medium">
-            All deliveries were completed successfully.
-          </p>
-          <p className="text-zinc-600 mb-10 text-sm font-mono">
-            #{batch_id.slice(0, 8)}
-          </p>
-
-          <button
-            onClick={() => (window.location.href = '/dashboard')}
-            className="group relative px-10 py-5 w-full max-w-xs bg-white text-zinc-950 rounded-2xl font-bold text-lg active:scale-95 transition-all flex items-center justify-center gap-3 shadow-xl"
-          >
-            Back to Dashboard
-            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </button>
         </div>
       </div>
     )
@@ -408,8 +413,7 @@ export default function RiderPage({ params }: PageProps) {
     .filter((_, i) => i !== activeIndex)
 
   return (
-    <div className="flex flex-col h-screen bg-zinc-950 text-white overflow-hidden">
-      {/* Global styles */}
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center font-sans selection:bg-indigo-500/30">
       <style jsx global>{`
         @keyframes fadeSlideUp {
           from { opacity: 0; transform: translateY(24px); }
@@ -422,280 +426,293 @@ export default function RiderPage({ params }: PageProps) {
         .swiper-pagination-bullet {
           background: rgba(255,255,255,0.15) !important;
           opacity: 1 !important;
-          width: 8px !important;
-          height: 8px !important;
+          width: 6px !important;
+          height: 6px !important;
           border-radius: 4px !important;
           transition: all 0.3s !important;
         }
         .swiper-pagination-bullet-active {
-          background: white !important;
-          width: 20px !important;
+          background: rgba(99,102,241,1) !important;
+          box-shadow: 0 0 10px rgba(99,102,241,0.5);
+          width: 16px !important;
         }
         .swipe-shimmer {
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
           background-size: 200% 100%;
-          animation: shimmer 2s infinite;
+          animation: shimmer 2.5s infinite linear;
         }
       `}</style>
 
-      {/* ▬▬▬ TOP 60%: MAP ▬▬▬ */}
-      <div className="relative" style={{ height: '55%' }}>
-        <GoogleRiderMap
-          activeTarget={mapActiveTarget}
-          remainingStops={mapRemainingStops}
-          userLocation={userLocation}
-          phase={currentPhase}
-        />
+      <div className="w-full mdT:max-w-[620px] h-screen md:rounded-[40px] md:border-[8px] md:border-zinc-900 overflow-hidden relative shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col bg-zinc-950">
 
-        {/* Geolocation Warning Banner */}
-        {locationStatus === 'denied' && (
-          <div className="absolute top-16 left-4 right-4 z-20 bg-red-500/10 backdrop-blur-lg border border-red-500/20 rounded-2xl p-3 flex items-center gap-3 animate-[fadeSlideUp_0.5s_ease-out]">
-            <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
-              <MapPin className="w-4 h-4 text-red-500" />
+        {/* Background cinematic glows */}
+        {/* <div className="absolute inset-0 z-0 pointer-events-none">
+          <div className="absolute top-[-10%] right-[-20%] w-[300px] h-[300px] bg-indigo-900/10 blur-[100px] mix-blend-screen rounded-full"></div>
+          <div className="absolute bottom-[20%] left-[-20%] w-[200px] h-[200px] bg-emerald-900/10 blur-[80px] mix-blend-screen rounded-full"></div>
+        </div> */}
+
+        {/* ▬▬▬ TOP 55%: MAP ▬▬▬ */}
+        <div className="relative z-10" style={{ height: '55%' }}>
+          <GoogleRiderMap
+            activeTarget={mapActiveTarget}
+            remainingStops={mapRemainingStops}
+            userLocation={userLocation}
+            phase={currentPhase}
+          />
+
+          <div className="absolute top-0 left-0 w-full h-14 bg-gradient-to-b from-zinc-950 pointer-events-none z-10"></div>
+
+          {/* Header over map */}
+          <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="w-8 h-8 rounded-full bg-zinc-900/80 backdrop-blur-md border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <div className="px-3 py-1.5 glass-panel rounded-full flex items-center gap-2 border border-white/10">
+                <div className={`w-2 h-2 rounded-full glow-indigo bg-indigo-500`}></div>
+                <span className="text-[10px] font-semibold tracking-wider text-zinc-300">BATCH {batch_id.slice(-4).toUpperCase()}</span>
+              </div>
             </div>
-            <div className="flex-1">
-              <p className="text-[10px] font-black text-red-400 uppercase tracking-widest">Location Disabled</p>
-              <p className="text-[10px] text-zinc-400 leading-tight">
-                Proximity sorting and live tracking are restricted.
-                <button
-                  onClick={() => alert('UNBLOCK GPS:\n1. Click the Tune/Lock icon to the left of the URL.\n2. Set Location to "Allow".\n3. Click Retry.')}
-                  className="ml-1 text-white underline underline-offset-2 hover:text-red-300 transition-colors"
-                >
-                  How to fix?
-                </button>
+          </div>
+
+          {/* Geolocation Warning Banner */}
+          {locationStatus === 'denied' && (
+            <div className="absolute top-20 left-4 right-4 z-20 glass-panel border-red-500/20 rounded-2xl p-3 flex items-center gap-3 animate-[fadeSlideUp_0.5s_ease-out]">
+              <div className="w-8 h-8 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                <MapPin className="w-4 h-4 text-red-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[10px] font-semibold text-red-400 uppercase tracking-widest">Location Disabled</p>
+                <p className="text-[10px] text-zinc-400 leading-tight">
+                  Proximity tracking restricted.
+                  <button onClick={() => alert('UNBLOCK GPS:\n1. Click Lock icon\n2. Allow Location\n3. Retry')} className="ml-1 text-white underline underline-offset-2">How to fix?</button>
+                </p>
+              </div>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-[9px] font-bold uppercase transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Floating phase transition banner */}
+          {/* {currentPhase === 'COLLECTING' && pendingPickups.length <= 1 && pendingPickups.length > 0 && (
+            <div className="absolute bottom-6 left-4 right-4 z-20 glass-panel border border-amber-500/20 rounded-2xl p-3 flex items-center gap-3 animate-[fadeSlideUp_0.5s_ease-out]">
+              <Package className="w-5 h-5 text-amber-400 shrink-0" />
+              <p className="text-[10px] font-semibold text-amber-300">
+                Final pickup. Optimization starting soon.
               </p>
             </div>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-[9px] font-black uppercase transition-colors"
-            >
-              Retry
-            </button>
-          </div>
-        )}
+          )} */}
 
-        {/* Floating phase transition banner */}
-        {currentPhase === 'COLLECTING' && pendingPickups.length <= 1 && pendingPickups.length > 0 && (
-          <div className="absolute bottom-4 left-4 right-4 z-20 bg-amber-500/10 backdrop-blur-lg border border-amber-500/20 rounded-2xl p-3 flex items-center gap-3 animate-[fadeSlideUp_0.5s_ease-out]">
-            <Package className="w-5 h-5 text-amber-400 shrink-0" />
-            <p className="text-[10px] font-bold text-amber-300">
-              Last pickup! Route optimization will engage after this.
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* ▬▬▬ BOTTOM 45%: TASK SWIPER ▬▬▬ */}
-      <div className="flex-1 flex flex-col relative bg-zinc-950 z-10" style={{ minHeight: '45%' }}>
-        {/* Phase toggle tabs + progress */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
-          {/* Tabs: show both if both phases have tasks */}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => { setCurrentPhase('COLLECTING'); setActiveIndex(0); swiperRef.current?.slideTo(0, 300) }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${currentPhase === 'COLLECTING'
-                  ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                  : 'text-zinc-600 hover:text-zinc-400'
-                }`}
-            >
-              <Package className="w-3 h-3" />
-              Pickup
-              {pendingPickups.length > 0 && (
-                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-black ${currentPhase === 'COLLECTING' ? 'bg-amber-500/25 text-amber-300' : 'bg-zinc-800 text-zinc-500'
-                  }`}>
-                  {pendingPickups.length}
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => { setCurrentPhase('DELIVERING'); setActiveIndex(0); swiperRef.current?.slideTo(0, 300) }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${currentPhase === 'DELIVERING'
-                  ? 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30'
-                  : 'text-zinc-600 hover:text-zinc-400'
-                }`}
-            >
-              <Truck className="w-3 h-3" />
-              Deliver
-              {deliveryQueue.length > 0 && (
-                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-black ${currentPhase === 'DELIVERING' ? 'bg-indigo-500/25 text-indigo-300' : 'bg-zinc-800 text-zinc-500'
-                  }`}>
-                  {deliveryQueue.length}
-                </span>
-              )}
-            </button>
-          </div>
-
-          {/* Counter */}
-          <div className="flex items-center gap-1.5 text-zinc-500">
-            <Layers className="w-3.5 h-3.5" />
-            <span className="text-xs font-bold font-mono">
-              {activeList.length > 0 ? `${activeIndex + 1}/${activeList.length}` : '0/0'}
-            </span>
-          </div>
+          <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-zinc-950 pointer-events-none z-10"></div>
         </div>
 
-        {/* Swiper or Empty State */}
-        {activeList.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-10 text-center animate-[fadeSlideUp_0.5s_ease-out]">
-            <div className="w-16 h-16 bg-zinc-900 rounded-3xl border border-white/5 flex items-center justify-center mb-4">
-              <Layers className="w-8 h-8 text-zinc-700" />
+        {/* ▬▬▬ BOTTOM 45%: TASK SWIPER ▬▬▬ */}
+        <div className="flex-1 flex flex-col relative z-20 h-auto">
+          {/* Phase toggle tabs + progress */}
+          <div className="flex items-center justify-between px-6 pt-2 pb-4">
+            <div className="flex items-center gap-1.5 p-1 bg-zinc-900/50 backdrop-blur-md rounded-xl border border-white/5">
+              <button
+                onClick={() => { setCurrentPhase('COLLECTING'); setActiveIndex(0); swiperRef.current?.slideTo(0, 300) }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all ${currentPhase === 'COLLECTING'
+                  ? 'bg-zinc-800 text-amber-400 shadow-lg'
+                  : 'text-zinc-500 hover:text-zinc-300'
+                  }`}
+              >
+                <Package className="w-3 h-3" />
+                Pickup
+                {pendingPickups.length > 0 && (
+                  <span className={`ml-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold ${currentPhase === 'COLLECTING' ? 'bg-amber-500/10 text-amber-400' : 'bg-transparent text-zinc-600'}`}>
+                    {pendingPickups.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => { setCurrentPhase('DELIVERING'); setActiveIndex(0); swiperRef.current?.slideTo(0, 300) }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all ${currentPhase === 'DELIVERING'
+                  ? 'bg-zinc-800 text-indigo-400 shadow-lg'
+                  : 'text-zinc-500 hover:text-zinc-300'
+                  }`}
+              >
+                <Truck className="w-3 h-3" />
+                Deliver
+                {deliveryQueue.length > 0 && (
+                  <span className={`ml-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold ${currentPhase === 'DELIVERING' ? 'bg-indigo-500/10 text-indigo-400' : 'bg-transparent text-zinc-600'}`}>
+                    {deliveryQueue.length}
+                  </span>
+                )}
+              </button>
             </div>
-            <p className="text-zinc-400 font-bold tracking-tight">No Active Tasks</p>
-            <p className="mt-1 text-zinc-600 text-xs max-w-[200px]">
-              All items for this batch have been processed or none were assigned.
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="mt-6 px-6 py-2.5 bg-zinc-900 border border-white/5 rounded-full text-xs font-bold hover:bg-zinc-800 active:scale-95 transition-all"
-            >
-              Refresh Status
-            </button>
+
+            <div className="flex items-center gap-1.5 text-zinc-500">
+              <span className="text-xs font-semibold font-mono border border-white/5 bg-zinc-900/50 px-2 py-1 rounded-md">
+                {activeList.length > 0 ? `${activeIndex + 1}/${activeList.length}` : '0'}
+              </span>
+            </div>
           </div>
-        ) : (
-          <Swiper
-            modules={[Pagination]}
-            pagination={{ clickable: true }}
-            spaceBetween={16}
-            className="flex-1 w-full"
-            onSwiper={(sw) => (swiperRef.current = sw)}
-            onSlideChange={(sw) => setActiveIndex(sw.activeIndex)}
-          >
-            {activeList.map((order, idx) => {
-              const dist = getDistanceFromUser(order)
-              const isCollecting = currentPhase === 'COLLECTING'
-              const address = isCollecting
-                ? order.pickup_address_text
-                : order.dropoff_address_text
-              const fallback = isCollecting
-                ? `${order.pickup_lat.toFixed(5)}, ${order.pickup_lng.toFixed(5)}`
-                : `${order.drop_lat.toFixed(5)}, ${order.drop_lng.toFixed(5)}`
 
-              return (
-                <SwiperSlide key={order.id} className="px-5 pb-4 pt-2">
-                  <div className="h-full bg-zinc-900 rounded-3xl border border-white/5 p-5 flex flex-col justify-between relative overflow-hidden">
-                    {/* Background number */}
-                    <div className="absolute top-0 right-0 py-3 px-6 text-7xl font-black text-white/5 select-none italic">
-                      {idx + 1}
-                    </div>
+          {/* Swiper or Empty State */}
+          {activeList.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-10 text-center animate-[fadeSlideUp_0.5s_ease-out]">
+              <div className="w-16 h-16 glass-panel rounded-3xl border border-white/5 flex items-center justify-center mb-4">
+                <Layers className="w-6 h-6 text-zinc-600" />
+              </div>
+              <p className="text-zinc-400 text-sm font-medium">No Active Tasks</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-6 px-6 py-2.5 glass-panel border border-white/10 rounded-xl text-xs font-medium hover:bg-white/5 transition-all"
+              >
+                Refresh
+              </button>
+            </div>
+          ) : (
+            <Swiper
+              modules={[Pagination]}
+              pagination={{ clickable: true }}
+              spaceBetween={16}
+              className="flex-1 w-full"
+              onSwiper={(sw) => (swiperRef.current = sw)}
+              onSlideChange={(sw) => setActiveIndex(sw.activeIndex)}
+            >
+              {activeList.map((order, idx) => {
+                const dist = getDistanceFromUser(order)
+                const isCollecting = currentPhase === 'COLLECTING'
+                const address = isCollecting
+                  ? order.pickup_address_text
+                  : order.dropoff_address_text
+                const fallback = isCollecting
+                  ? `${order.pickup_lat.toFixed(5)}, ${order.pickup_lng.toFixed(5)}`
+                  : `${order.drop_lat.toFixed(5)}, ${order.drop_lng.toFixed(5)}`
 
-                    {/* Task info */}
-                    <div className="space-y-3 relative z-10">
-                      <div className="flex items-center justify-between">
-                        <span
-                          className={`text-[10px] font-black uppercase tracking-widest ${isCollecting ? 'text-amber-400' : 'text-indigo-400'
-                            }`}
-                        >
-                          {isCollecting ? 'Pickup' : 'Drop-off'} {idx + 1} of{' '}
-                          {activeList.length}
-                        </span>
-                        <span className="text-[10px] font-mono text-zinc-600">
-                          #{order.id.slice(-4).toUpperCase()}
-                        </span>
+                return (
+                  <SwiperSlide key={order.id} className="px-6 pb-6 pt-1">
+                    <div className="h-full glass-card rounded-[24px] p-6 flex flex-col justify-between relative overflow-hidden group">
+
+                      {/* Subdued background number */}
+                      <div className="absolute top-[-10px] right-2 text-8xl font-black text-white/[0.02] select-none pointer-events-none transition-transform group-hover:scale-110">
+                        {idx + 1}
                       </div>
 
-                      {/* Business name (pickup phase only) */}
-                      {isCollecting && (order as any).business_name && (
-                        <div className="flex items-center gap-2">
-                          <Building2 className="w-4 h-4 text-amber-400 shrink-0" />
-                          <p className="text-lg font-black text-white tracking-tight leading-none">
-                            {(order as any).business_name}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Address */}
-                      <div className="flex items-start gap-3">
-                        <MapPin
-                          className={`w-5 h-5 mt-0.5 shrink-0 ${isCollecting ? 'text-amber-400' : 'text-indigo-400'
-                            }`}
-                        />
-                        <h2 className="text-xl font-black text-white leading-tight tracking-tight">
-                          {address || fallback}
-                        </h2>
-                      </div>
-
-                      {/* Distance badge */}
-                      {dist !== null && (
-                        <div className="flex items-center gap-2">
-                          <Truck className="w-3 h-3 text-zinc-600" />
-                          <span className="text-xs font-bold text-zinc-500">
-                            {dist < 1
-                              ? `${(dist * 1000).toFixed(0)}m away`
-                              : `${dist.toFixed(1)} km away`}
+                      {/* Task info */}
+                      <div className="space-y-4 relative z-10 w-full overflow-hidden">
+                        <div className="flex items-center justify-between">
+                          <span
+                            className={`text-[9px] px-2 py-0.5 rounded border font-semibold uppercase tracking-widest ${isCollecting ? 'text-amber-400 border-amber-500/20 bg-amber-500/10' : 'text-indigo-400 border-indigo-500/20 bg-indigo-500/10'
+                              }`}
+                          >
+                            {isCollecting ? 'Pickup' : 'Drop-off'}
+                          </span>
+                          <span className="text-[10px] font-mono text-zinc-500">
+                            ID • {order.id.slice(-4).toUpperCase()}
                           </span>
                         </div>
-                      )}
-                    </div>
 
-                    {/* Action buttons */}
-                    <div className="space-y-2.5 pt-3 relative z-10">
-                      {/* Navigate + Call row */}
-                      <div className={`flex gap-2 ${isCollecting && (order as any).business_phone ? 'flex-row' : ''}`}>
-                        <a
-                          href={getNavUrl(order)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={`flex items-center justify-center gap-2.5 flex-1 py-4 rounded-2xl font-black text-base active:scale-[0.97] transition-all shadow-lg ${isCollecting
-                              ? 'bg-amber-500 text-zinc-950 shadow-amber-500/25'
-                              : 'bg-indigo-600 text-white shadow-indigo-600/25'
-                            }`}
-                        >
-                          <ExternalLink className="w-5 h-5" />
-                          NAVIGATE
-                        </a>
-                        {isCollecting && (order as any).business_phone && (
+                        {/* Title block */}
+                        <div>
+                          {isCollecting && (order as any).business_name && (
+                            <p className="text-xs text-zinc-400 mb-1 flex items-center gap-1.5">
+                              <Building2 className="w-3 h-3" />
+                              {(order as any).business_name}
+                            </p>
+                          )}
+                          <div className="flex items-start gap-2.5 w-full">
+                            <MapPin
+                              className={`w-4 h-4 mt-1 shrink-0 ${isCollecting ? 'text-amber-400' : 'text-indigo-400'}`}
+                            />
+                            <h2 className="md:text-xl text-sm font-semibold text-white leading-tight break-words">
+                              {address || fallback}
+                            </h2>
+                          </div>
+                        </div>
+
+                        {/* Status bar */}
+                        <div className="flex items-center gap-3">
+                          {dist !== null && (
+                            <div className="flex items-center gap-1.5">
+                              <Truck className="w-3.5 h-3.5 text-zinc-500" />
+                              <span className="text-xs font-medium text-zinc-400">
+                                {dist < 1 ? `${(dist * 1000).toFixed(0)}m` : `${dist.toFixed(1)} km`}
+                              </span>
+                            </div>
+                          )}
+                          <div className="h-1 w-1 bg-zinc-700 rounded-full"></div>
+                          <span className="text-xs text-zinc-500 font-medium">Ready</span>
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="space-y-3 pt-4 relative z-10">
+                        <div className={`flex gap-2.5 ${isCollecting && (order as any).business_phone ? 'flex-row' : ''}`}>
                           <a
-                            href={`tel:${(order as any).business_phone}`}
-                            className="flex items-center justify-center gap-2 px-4 py-4 rounded-2xl font-black text-sm bg-zinc-800 border border-white/10 text-zinc-200 active:scale-[0.97] transition-all"
+                            href={getNavUrl(order)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`flex items-center justify-center gap-2 flex-1 py-3.5 rounded-[14px] font-medium text-sm transition-all shadow-lg border ${isCollecting
+                              ? 'bg-zinc-800/80 border-amber-500/20 text-amber-50 hover:bg-zinc-800 hover:border-amber-500/40'
+                              : 'bg-indigo-600 border-indigo-500 text-white hover:bg-indigo-500 hover:shadow-indigo-500/25 glow-indigo'
+                              }`}
                           >
-                            <Phone className="w-5 h-5" />
+                            <ExternalLink className="w-4 h-4" />
+                            Navigate Route
                           </a>
+                          {isCollecting && (order as any).business_phone && (
+                            <a
+                              href={`tel:${(order as any).business_phone}`}
+                              className="flex items-center justify-center w-14 rounded-[14px] bg-zinc-800 border border-white/5 text-zinc-300 hover:text-white hover:bg-zinc-700 transition-all"
+                            >
+                              <Phone className="w-4 h-4" />
+                            </a>
+                          )}
+                        </div>
+
+                        {/* Swipe/Confirm */}
+                        {confirmingId === order.id ? (
+                          <button
+                            onClick={() =>
+                              isCollecting ? markPickedUp(order.id) : markDelivered(order.id)
+                            }
+                            disabled={updatingId === order.id}
+                            className="relative flex items-center justify-center gap-2 w-full py-3.5 bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 rounded-[14px] font-semibold text-sm transition-all glow-emerald overflow-hidden"
+                          >
+                            {updatingId === order.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <CheckCircle className="w-4 h-4" />
+                            )}
+                            {updatingId === order.id ? 'Updating...' : `Confirm ${isCollecting ? 'Pickup' : 'Delivery'}`}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmingId(order.id)}
+                            className="relative flex items-center justify-center gap-2 w-full py-3.5 bg-zinc-900/50 border border-white/5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-[14px] font-medium text-sm transition-all overflow-hidden group"
+                          >
+                            <div className="absolute inset-0 swipe-shimmer opacity-50" />
+                            <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                            <span className="relative z-10 tracking-wide">
+                              {isCollecting ? 'Tap to Mark Picked Up' : 'Tap to Mark Delivered'}
+                            </span>
+                          </button>
                         )}
                       </div>
-
-                      {/* Swipe-to-confirm or button */}
-                      {confirmingId === order.id ? (
-                        <button
-                          onClick={() =>
-                            isCollecting
-                              ? markPickedUp(order.id)
-                              : markDelivered(order.id)
-                          }
-                          disabled={updatingId === order.id}
-                          className="relative flex items-center justify-center gap-2 w-full py-4 bg-emerald-600 text-white rounded-2xl font-black text-base active:scale-[0.97] transition-all shadow-lg shadow-emerald-600/20 overflow-hidden"
-                        >
-                          {updatingId === order.id ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                          ) : (
-                            <CheckCircle className="w-5 h-5" />
-                          )}
-                          {updatingId === order.id
-                            ? 'Updating…'
-                            : `Confirm ${isCollecting ? 'Pickup' : 'Delivery'}`}
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => setConfirmingId(order.id)}
-                          className="relative flex items-center justify-center gap-2 w-full py-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-2xl font-bold text-sm border border-white/5 active:scale-[0.97] transition-all overflow-hidden"
-                        >
-                          <div className="absolute inset-0 swipe-shimmer" />
-                          <ChevronRight className="w-4 h-4" />
-                          <span className="relative z-10">
-                            {isCollecting
-                              ? 'Mark Picked Up'
-                              : 'Mark Delivered'}
-                          </span>
-                        </button>
-                      )}
                     </div>
-                  </div>
-                </SwiperSlide>
-              )
-            })}
-          </Swiper>
-        )}
+                  </SwiperSlide>
+                )
+              })}
+            </Swiper>
+          )}
+        </div>
       </div>
     </div>
   )
+}
+
+function UserIcon(props: any) {
+  return <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
 }

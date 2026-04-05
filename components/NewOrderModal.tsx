@@ -329,7 +329,7 @@ export default function NewOrderModal({ onClose, onSaved }: NewOrderModalProps) 
 
           {/* Footer */}
           <div
-            className="flex items-center justify-end gap-3 px-6 py-4"
+            className="flex items-center justify-between gap-3 px-6 py-4"
             style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
           >
             <button
