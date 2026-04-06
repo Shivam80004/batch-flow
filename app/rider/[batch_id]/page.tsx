@@ -15,6 +15,11 @@ import {
   Layers,
   Building2,
   Phone,
+  ChevronUp,
+  ChevronDown,
+  LocateIcon,
+  Locate,
+  Map,
 } from 'lucide-react'
 import { supabase } from '@/utils/supabase/client'
 import { parsePoint } from '@/utils/routing'
@@ -90,6 +95,64 @@ export default function RiderPage({ params }: PageProps) {
   const [locationErrorMessage, setLocationErrorMessage] = useState<string | null>(null)
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const swiperRef = useRef<SwiperType | null>(null)
+
+  // ── Shutter drag state ──────────────────────────────────────────────────
+  const [shutterVh, setShutterVh] = useState(48)
+  const [isDragging, setIsDragging] = useState(false)
+  const dragRef = useRef(false)
+  const [windowHeight, setWindowHeight] = useState(800)
+
+  useEffect(() => {
+    setWindowHeight(window.innerHeight)
+    const rh = () => setWindowHeight(window.innerHeight)
+    window.addEventListener('resize', rh)
+    return () => window.removeEventListener('resize', rh)
+  }, [])
+
+  useEffect(() => {
+    const handlePointerMove = (e: PointerEvent) => {
+      if (!dragRef.current) return
+      const vh = ((window.innerHeight - e.clientY) / window.innerHeight) * 100
+      const currentMinVh = (72 / window.innerHeight) * 100
+      const clamped = Math.max(currentMinVh, Math.min(85, vh))
+      setShutterVh(clamped)
+    }
+
+    const handlePointerUp = () => {
+      if (dragRef.current) {
+        dragRef.current = false
+        setIsDragging(false)
+        document.body.style.userSelect = ''
+        document.body.style.touchAction = ''
+      }
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+    }
+  }, [])
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    dragRef.current = true
+    setIsDragging(true)
+    document.body.style.userSelect = 'none'
+    document.body.style.touchAction = 'none'
+  }
+
+  const currentMinVh = (72 / windowHeight) * 100
+  const isShutterOpen = shutterVh > currentMinVh + 2
+
+  const toggleShutter = (e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    if (isShutterOpen) {
+      setShutterVh(currentMinVh)
+    } else {
+      setShutterVh(48)
+    }
+  }
 
   // ── Derived lists (pickups sorted by proximity) ─────────────────────────
 
@@ -451,8 +514,8 @@ export default function RiderPage({ params }: PageProps) {
           <div className="absolute bottom-[20%] left-[-20%] w-[200px] h-[200px] bg-emerald-900/10 blur-[80px] mix-blend-screen rounded-full"></div>
         </div> */}
 
-        {/* ▬▬▬ TOP 55%: MAP ▬▬▬ */}
-        <div className="relative z-10" style={{ height: '55%' }}>
+        {/* ▬▬▬ TOP: MAP ▬▬▬ */}
+        <div className="relative z-10 flex-1 w-full transition-all duration-500">
           <GoogleRiderMap
             activeTarget={mapActiveTarget}
             remainingStops={mapRemainingStops}
@@ -460,7 +523,7 @@ export default function RiderPage({ params }: PageProps) {
             phase={currentPhase}
           />
 
-          <div className="absolute top-0 left-0 w-full h-14 bg-gradient-to-b from-zinc-950 pointer-events-none z-10"></div>
+          <div className="absolute top-0 left-0 w-full h-14 bg-gradient-to-b from-zinc-950/50 pointer-events-none z-10"></div>
 
           {/* Header over map */}
           <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-center">
@@ -510,13 +573,27 @@ export default function RiderPage({ params }: PageProps) {
             </div>
           )} */}
 
-          <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-zinc-950 pointer-events-none z-10"></div>
+          <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-zinc-950/50 pointer-events-none z-10"></div>
         </div>
 
-        {/* ▬▬▬ BOTTOM 45%: TASK SWIPER ▬▬▬ */}
-        <div className="flex-1 flex flex-col relative z-20 h-auto">
+        {/* ▬▬▬ BOTTOM 45%: TASK SWIPER (ROLLER SHUTTER) ▬▬▬ */}
+        <div
+          className={`w-full flex flex-col relative z-20 bg-zinc-950 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.6)] border-t border-white/5 ${isDragging ? 'transition-none' : 'transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]'
+            } ${!isShutterOpen ? 'cursor-pointer hover:bg-zinc-900/90' : ''}`}
+          style={{ height: `max(72px, ${shutterVh}vh)` }}
+          onClick={() => !isShutterOpen && toggleShutter()}
+        >
+          {/* Shutter Handle */}
+          <div
+            className="w-full flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing"
+            onPointerDown={handlePointerDown}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-1.5 bg-white/20 rounded-full hover:bg-white/40 transition-colors" />
+          </div>
+
           {/* Phase toggle tabs + progress */}
-          <div className="flex items-center justify-between px-6 pt-2 pb-4">
+          <div className="flex items-center justify-between px-6 pb-3 pt-1">
             <div className="flex items-center gap-1.5 p-1 bg-zinc-900/50 backdrop-blur-md rounded-xl border border-white/5">
               <button
                 onClick={() => { setCurrentPhase('COLLECTING'); setActiveIndex(0); swiperRef.current?.slideTo(0, 300) }}
@@ -551,162 +628,172 @@ export default function RiderPage({ params }: PageProps) {
               </button>
             </div>
 
-            <div className="flex items-center gap-1.5 text-zinc-500">
+            <div className="flex items-center gap-3 text-zinc-500">
               <span className="text-xs font-semibold font-mono border border-white/5 bg-zinc-900/50 px-2 py-1 rounded-md">
                 {activeList.length > 0 ? `${activeIndex + 1}/${activeList.length}` : '0'}
               </span>
+              <button
+                onClick={toggleShutter}
+                className="w-8 h-8 rounded-full flex items-center justify-center bg-zinc-900/80 border border-white/10 text-zinc-400 hover:text-white transition-colors"
+              >
+                {isShutterOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+              </button>
             </div>
           </div>
 
-          {/* Swiper or Empty State */}
-          {activeList.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center p-10 text-center animate-[fadeSlideUp_0.5s_ease-out]">
-              <div className="w-16 h-16 glass-panel rounded-3xl border border-white/5 flex items-center justify-center mb-4">
-                <Layers className="w-6 h-6 text-zinc-600" />
+          {/* Swiper Content area that fades out when closed */}
+          <div className={`flex-1 flex flex-col relative overflow-hidden transition-all duration-300 ${isShutterOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
+            {/* Swiper or Empty State */}
+            {activeList.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-10 text-center animate-[fadeSlideUp_0.5s_ease-out]">
+                <div className="w-16 h-16 glass-panel rounded-3xl border border-white/5 flex items-center justify-center mb-4">
+                  <Layers className="w-6 h-6 text-zinc-600" />
+                </div>
+                <p className="text-zinc-400 text-sm font-medium">No Active Tasks</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="mt-6 px-6 py-2.5 glass-panel border border-white/10 rounded-xl text-xs font-medium hover:bg-white/5 transition-all"
+                >
+                  Refresh
+                </button>
               </div>
-              <p className="text-zinc-400 text-sm font-medium">No Active Tasks</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="mt-6 px-6 py-2.5 glass-panel border border-white/10 rounded-xl text-xs font-medium hover:bg-white/5 transition-all"
+            ) : (
+              <Swiper
+                modules={[Pagination]}
+                pagination={{ clickable: true }}
+                spaceBetween={16}
+                className="flex-1 w-full"
+                onSwiper={(sw) => (swiperRef.current = sw)}
+                onSlideChange={(sw) => setActiveIndex(sw.activeIndex)}
               >
-                Refresh
-              </button>
-            </div>
-          ) : (
-            <Swiper
-              modules={[Pagination]}
-              pagination={{ clickable: true }}
-              spaceBetween={16}
-              className="flex-1 w-full"
-              onSwiper={(sw) => (swiperRef.current = sw)}
-              onSlideChange={(sw) => setActiveIndex(sw.activeIndex)}
-            >
-              {activeList.map((order, idx) => {
-                const dist = getDistanceFromUser(order)
-                const isCollecting = currentPhase === 'COLLECTING'
-                const address = isCollecting
-                  ? order.pickup_address_text
-                  : order.dropoff_address_text
-                const fallback = isCollecting
-                  ? `${order.pickup_lat.toFixed(5)}, ${order.pickup_lng.toFixed(5)}`
-                  : `${order.drop_lat.toFixed(5)}, ${order.drop_lng.toFixed(5)}`
+                {activeList.map((order, idx) => {
+                  const dist = getDistanceFromUser(order)
+                  const isCollecting = currentPhase === 'COLLECTING'
+                  const address = isCollecting
+                    ? order.pickup_address_text
+                    : order.dropoff_address_text
+                  const fallback = isCollecting
+                    ? `${order.pickup_lat.toFixed(5)}, ${order.pickup_lng.toFixed(5)}`
+                    : `${order.drop_lat.toFixed(5)}, ${order.drop_lng.toFixed(5)}`
 
-                return (
-                  <SwiperSlide key={order.id} className="px-6 pb-6 pt-1">
-                    <div className="h-full glass-card rounded-[24px] p-6 flex flex-col justify-between relative overflow-hidden group">
+                  return (
+                    <SwiperSlide key={order.id} className="px-6 pb-6 pt-1">
+                      <div className="h-full glass-card rounded-[24px] p-6 flex flex-col justify-between relative overflow-hidden group">
 
-                      {/* Subdued background number */}
-                      <div className="absolute top-[-10px] right-2 text-8xl font-black text-white/[0.02] select-none pointer-events-none transition-transform group-hover:scale-110">
-                        {idx + 1}
-                      </div>
-
-                      {/* Task info */}
-                      <div className="space-y-4 relative z-10 w-full overflow-hidden">
-                        <div className="flex items-center justify-between">
-                          <span
-                            className={`text-[9px] px-2 py-0.5 rounded border font-semibold uppercase tracking-widest ${isCollecting ? 'text-amber-400 border-amber-500/20 bg-amber-500/10' : 'text-indigo-400 border-indigo-500/20 bg-indigo-500/10'
-                              }`}
-                          >
-                            {isCollecting ? 'Pickup' : 'Drop-off'}
-                          </span>
-                          <span className="text-[10px] font-mono text-zinc-500">
-                            ID • {order.id.slice(-4).toUpperCase()}
-                          </span>
+                        {/* Subdued background number */}
+                        <div className="absolute top-[-10px] right-2 text-8xl font-black text-white/[0.02] select-none pointer-events-none transition-transform group-hover:scale-110">
+                          {idx + 1}
                         </div>
 
-                        {/* Title block */}
-                        <div>
-                          {isCollecting && (order as any).business_name && (
-                            <p className="text-xs text-zinc-400 mb-1 flex items-center gap-1.5">
-                              <Building2 className="w-3 h-3" />
-                              {(order as any).business_name}
-                            </p>
-                          )}
-                          <div className="flex items-start gap-2.5 w-full">
-                            <MapPin
-                              className={`w-4 h-4 mt-1 shrink-0 ${isCollecting ? 'text-amber-400' : 'text-indigo-400'}`}
-                            />
-                            <h2 className="md:text-xl text-sm font-semibold text-white leading-tight break-words">
-                              {address || fallback}
-                            </h2>
-                          </div>
-                        </div>
-
-                        {/* Status bar */}
-                        <div className="flex items-center gap-3">
-                          {dist !== null && (
-                            <div className="flex items-center gap-1.5">
-                              <Truck className="w-3.5 h-3.5 text-zinc-500" />
-                              <span className="text-xs font-medium text-zinc-400">
-                                {dist < 1 ? `${(dist * 1000).toFixed(0)}m` : `${dist.toFixed(1)} km`}
-                              </span>
-                            </div>
-                          )}
-                          <div className="h-1 w-1 bg-zinc-700 rounded-full"></div>
-                          <span className="text-xs text-zinc-500 font-medium">Ready</span>
-                        </div>
-                      </div>
-
-                      {/* Action buttons */}
-                      <div className="space-y-3 pt-4 relative z-10">
-                        <div className={`flex gap-2.5 ${isCollecting && (order as any).business_phone ? 'flex-row' : ''}`}>
-                          <a
-                            href={getNavUrl(order)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={`flex items-center justify-center gap-2 flex-1 py-3.5 rounded-[14px] font-medium text-sm transition-all shadow-lg border ${isCollecting
-                              ? 'bg-zinc-800/80 border-amber-500/20 text-amber-50 hover:bg-zinc-800 hover:border-amber-500/40'
-                              : 'bg-indigo-600 border-indigo-500 text-white hover:bg-indigo-500 hover:shadow-indigo-500/25 glow-indigo'
-                              }`}
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                            Navigate Route
-                          </a>
-                          {isCollecting && (order as any).business_phone && (
-                            <a
-                              href={`tel:${(order as any).business_phone}`}
-                              className="flex items-center justify-center w-14 rounded-[14px] bg-zinc-800 border border-white/5 text-zinc-300 hover:text-white hover:bg-zinc-700 transition-all"
+                        {/* Task info */}
+                        <div className="space-y-4 relative z-10 w-full overflow-hidden">
+                          <div className="flex items-center justify-between">
+                            <span
+                              className={`text-[9px] px-2 py-0.5 rounded border font-semibold uppercase tracking-widest ${isCollecting ? 'text-amber-400 border-amber-500/20 bg-amber-500/10' : 'text-indigo-400 border-indigo-500/20 bg-indigo-500/10'
+                                }`}
                             >
-                              <Phone className="w-4 h-4" />
-                            </a>
-                          )}
+                              {isCollecting ? 'Pickup' : 'Drop-off'}
+                            </span>
+                            <span className="text-[10px] font-mono text-zinc-500">
+                              ID • {order.id.slice(-4).toUpperCase()}
+                            </span>
+                          </div>
+
+                          {/* Title block */}
+                          <div>
+                            {isCollecting && (order as any).business_name && (
+                              <p className="text-xs text-zinc-400 mb-1 flex items-center gap-1.5">
+                                <Building2 className="w-3 h-3" />
+                                {(order as any).business_name}
+                              </p>
+                            )}
+                            <div className="flex items-start gap-2.5 w-full">
+                              <MapPin
+                                className={`w-4 h-4 mt-1 shrink-0 ${isCollecting ? 'text-amber-400' : 'text-indigo-400'}`}
+                              />
+                              <h2 className="md:text-xl text-sm font-semibold text-white leading-tight break-words">
+                                {address || fallback}
+                              </h2>
+                            </div>
+                          </div>
+
+                          {/* Status bar */}
+                          {/* <div className="flex items-center gap-3">
+                            {dist !== null && (
+                              <div className="flex items-center gap-1.5">
+                                <Truck className="w-3.5 h-3.5 text-zinc-500" />
+                                <span className="text-xs font-medium text-zinc-400">
+                                  {dist < 1 ? `${(dist * 1000).toFixed(0)}m` : `${dist.toFixed(1)} km`}
+                                </span>
+                              </div>
+                            )}
+                            <div className="h-1 w-1 bg-zinc-700 rounded-full"></div>
+                            <span className="text-xs text-zinc-500 font-medium">Ready</span>
+                          </div> */}
                         </div>
 
-                        {/* Swipe/Confirm */}
-                        {confirmingId === order.id ? (
-                          <button
-                            onClick={() =>
-                              isCollecting ? markPickedUp(order.id) : markDelivered(order.id)
-                            }
-                            disabled={updatingId === order.id}
-                            className="relative flex items-center justify-center gap-2 w-full py-3.5 bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 rounded-[14px] font-semibold text-sm transition-all glow-emerald overflow-hidden"
-                          >
-                            {updatingId === order.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <CheckCircle className="w-4 h-4" />
+                        {/* Action buttons */}
+                        <div className="space-y-3 flex pt-4 relative z-10">
+
+                          {/* Swipe/Confirm */}
+                          {confirmingId === order.id ? (
+                            <button
+                              onClick={() =>
+                                isCollecting ? markPickedUp(order.id) : markDelivered(order.id)
+                              }
+                              disabled={updatingId === order.id}
+                              className="relative flex items-center justify-center gap-2 w-full py-3.5 bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 rounded-[14px] font-semibold text-sm transition-all glow-emerald overflow-hidden"
+                            >
+                              {updatingId === order.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <CheckCircle className="w-4 h-4" />
+                              )}
+                              {updatingId === order.id ? 'Updating...' : `Confirm ${isCollecting ? 'Pickup' : 'Delivery'}`}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmingId(order.id)}
+                              className="relative flex items-center justify-center gap-2 w-full py-3 bg-zinc-900/50 border border-white/5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-[14px] font-medium text-sm transition-all overflow-hidden group"
+                            >
+                              <div className="absolute inset-0 swipe-shimmer opacity-50" />
+                              <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                              <span className="relative z-10 tracking-wide">
+                                {isCollecting ? 'Tap to Mark Picked Up' : 'Tap to Mark Delivered'}
+                              </span>
+                            </button>
+                          )}
+
+                          {/* <div className={`flex w-fit  gap-2.5 ${isCollecting && (order as any).business_phone ? 'flex-row' : ''}`}>
+                            <a
+                              href={getNavUrl(order)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`flex items-center justify-center gap-2 flex-1 py-3.5 rounded-[14px] font-medium text-sm transition-all shadow-lg border ${isCollecting
+                                ? 'bg-zinc-800/80 border-amber-500/20 p-4 text-amber-50 hover:bg-zinc-800 hover:border-amber-500/40'
+                                : 'bg-indigo-600 border-indigo-500 text-white hover:bg-indigo-500 hover:shadow-indigo-500/25 glow-indigo'
+                                }`}
+                            >
+                              <Map className="w-4 h-4" />
+                              Google Maps
+                            </a>
+                            {isCollecting && (order as any).business_phone && (
+                              <a
+                                href={`tel:${(order as any).business_phone}`}
+                                className="flex items-center justify-center w-14 p-5 rounded-[14px] bg-zinc-800 border border-white/5 text-zinc-300 hover:text-white hover:bg-zinc-700 transition-all"
+                              >
+                                <Phone className="w-4 h-4" />
+                              </a>
                             )}
-                            {updatingId === order.id ? 'Updating...' : `Confirm ${isCollecting ? 'Pickup' : 'Delivery'}`}
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => setConfirmingId(order.id)}
-                            className="relative flex items-center justify-center gap-2 w-full py-3.5 bg-zinc-900/50 border border-white/5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-[14px] font-medium text-sm transition-all overflow-hidden group"
-                          >
-                            <div className="absolute inset-0 swipe-shimmer opacity-50" />
-                            <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                            <span className="relative z-10 tracking-wide">
-                              {isCollecting ? 'Tap to Mark Picked Up' : 'Tap to Mark Delivered'}
-                            </span>
-                          </button>
-                        )}
+                          </div> */}
+                        </div>
                       </div>
-                    </div>
-                  </SwiperSlide>
-                )
-              })}
-            </Swiper>
-          )}
+                    </SwiperSlide>
+                  )
+                })}
+              </Swiper>
+            )}
+          </div>
         </div>
       </div>
     </div>

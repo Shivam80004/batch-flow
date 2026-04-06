@@ -173,6 +173,7 @@ export default function GoogleRiderMap({
     if (!map || !mapReady || !userLocation || userLocation.lat === 0 || !activeTarget || activeTarget.lat === 0) {
       if (directionsRendererRef.current) directionsRendererRef.current.setMap(null)
       setRouteInfo(null)
+      lastDirectionsKeyRef.current = '' // CLEAR CACHE
       return
     }
 
@@ -223,6 +224,8 @@ export default function GoogleRiderMap({
           }
         } else {
           console.warn('Directions request failed:', status)
+          setRouteInfo(null)
+          lastDirectionsKeyRef.current = ''
         }
       }
     )
