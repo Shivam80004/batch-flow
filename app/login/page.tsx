@@ -58,32 +58,25 @@ export default function LoginPage() {
 
     if (checking) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-zinc-950">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+            <div className="flex min-h-screen items-center justify-center bg-zinc-50">
+                <Loader2 className="w-8 h-8 animate-spin text-radium-green" />
             </div>
         )
     }
 
     return (
-        <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-zinc-950 px-4">
-            {/* Cinematic Background */}
-            <div className="absolute inset-0 z-0">
-                <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-indigo-600/20 rounded-full blur-[120px] mix-blend-screen animate-float"></div>
-                <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-emerald-600/10 rounded-full blur-[100px] mix-blend-screen animate-float-slow"></div>
-                {/* Subtle noise texture overlay if desired, simulated by a semi-transparent radial gradient */}
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0)_0%,rgba(9,9,11,1)_80%)]"></div>
-            </div>
+        <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-4">
 
             <div className="relative z-10 w-full max-w-[420px]">
                 {/* Glass Card */}
-                <div className="glass-card rounded-[24px] p-10 transform transition-all hover:scale-[1.01] duration-500">
+                <div className="rounded-[32px] p-10 transform transition-all hover:scale-[1.01] duration-500 shadow-[0_16px_40px_rgba(0,0,0,0.15)] text-white">
 
                     {/* Header */}
                     <div className="mb-10 text-center flex flex-col items-center">
-                        <div className="w-14 h-14 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl flex items-center justify-center mb-6 glow-indigo transform transition duration-500 hover:rotate-12">
-                            <Package className="w-7 h-7 text-indigo-400" />
+                        <div className="w-14 h-14 bg-radium-green/10 border border-radium-green/20 rounded-2xl flex items-center justify-center mb-6 glow-radium transform transition duration-500 hover:rotate-12">
+                            <Package className="w-7 h-7 text-radium-green" />
                         </div>
-                        <h1 className="text-3xl font-semibold text-white tracking-tight glow-text-indigo mb-2">
+                        <h1 className="text-3xl font-bold tracking-tight mb-2">
                             Logistics Platform
                         </h1>
                         <p className="text-zinc-400 text-sm font-medium tracking-wide">
@@ -106,7 +99,7 @@ export default function LoginPage() {
                                 Email
                             </label>
                             <div className="relative group">
-                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-zinc-500 group-focus-within:text-indigo-400 transition-colors pointer-events-none" />
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-zinc-500 group-focus-within:text-radium-green transition-colors pointer-events-none" />
                                 <input
                                     id="email"
                                     type="email"
@@ -115,7 +108,7 @@ export default function LoginPage() {
                                     placeholder="your@email.com"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full pl-11 pr-4 py-3.5 bg-zinc-900/50 border border-white/5 rounded-2xl text-white placeholder-zinc-600 text-sm focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all shadow-inner"
+                                    className="w-full pl-11 pr-4 py-3.5 bg-zinc-900/50 border border-white/10 rounded-2xl text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-radium-green/50 focus:ring-1 focus:ring-radium-green/50 transition-all shadow-inner"
                                 />
                             </div>
                         </div>
@@ -126,7 +119,7 @@ export default function LoginPage() {
                                 Password
                             </label>
                             <div className="relative group">
-                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-zinc-500 group-focus-within:text-indigo-400 transition-colors pointer-events-none" />
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-zinc-500 group-focus-within:text-radium-green transition-colors pointer-events-none" />
                                 <input
                                     id="password"
                                     type="password"
@@ -135,7 +128,7 @@ export default function LoginPage() {
                                     placeholder="••••••••"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full pl-11 pr-4 py-3.5 bg-zinc-900/50 border border-white/5 rounded-2xl text-white placeholder-zinc-600 text-sm focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all shadow-inner"
+                                    className="w-full pl-11 pr-4 py-3.5 bg-zinc-900/50 border border-white/10 rounded-2xl text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-radium-green/50 focus:ring-1 focus:ring-radium-green/50 transition-all shadow-inner"
                                 />
                             </div>
                         </div>
@@ -144,7 +137,7 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full relative mt-2 group overflow-hidden rounded-2xl bg-indigo-600 px-4 py-3.5 text-sm font-semibold text-white transition-all hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed glow-indigo"
+                            className="w-full relative mt-4 group overflow-hidden rounded-[20px] bg-radium-green px-4 py-4 text-sm font-bold text-zinc-950 transition-all hover:bg-radium-green-hover disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_4px_24px_rgba(212,255,0,0.2)]"
                         >
                             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out"></div>
                             <span className="relative flex items-center justify-center gap-2">
@@ -164,13 +157,13 @@ export default function LoginPage() {
                     <div className="mt-8 flex items-center justify-between text-xs font-medium">
                         <Link
                             href="/forgot-password"
-                            className="text-zinc-400 hover:text-indigo-400 transition-colors flex items-center gap-1"
+                            className="text-zinc-400 hover:text-white transition-colors flex items-center gap-1"
                         >
                             Forgot Password?
                         </Link>
                         <Link
                             href="/register"
-                            className="text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1"
+                            className="text-radium-green hover:text-radium-green-hover transition-colors flex items-center gap-1"
                         >
                             Create Account
                         </Link>

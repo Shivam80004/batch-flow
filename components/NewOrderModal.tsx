@@ -159,38 +159,38 @@ export default function NewOrderModal({ onClose, onSaved }: NewOrderModalProps) 
   return (
     /* Backdrop */
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 transition-all"
+      style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(6px)' }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       {/* Panel */}
       <div
-        className="relative w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl"
+        className="relative w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl"
         style={{
-          background: 'linear-gradient(145deg, #18181b, #0f0f12)',
-          border: '1px solid rgba(255,255,255,0.07)',
+          background: '#ffffff',
+          border: '1px solid rgba(0,0,0,0.05)',
         }}
       >
         {/* Header */}
         <div
           className="flex items-center justify-between px-6 py-5"
-          style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}
         >
           <div className="flex items-center gap-3">
             <div
               className="p-2 rounded-xl"
-              style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.25)' }}
+              style={{ background: 'rgba(212,255,0,0.15)', border: '1px solid rgba(212,255,0,0.25)' }}
             >
-              <Package className="w-5 h-5 text-indigo-400" />
+              <Package className="w-5 h-5 text-radium-green" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white tracking-tight">New Order</h2>
-              <p className="text-xs text-zinc-500">Fill in sender &amp; receiver details</p>
+              <h2 className="text-base font-bold text-zinc-900 tracking-tight">New Order</h2>
+              <p className="text-xs text-zinc-500 font-medium">Fill in sender &amp; receiver details</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-zinc-500 hover:text-white hover:bg-white/5 transition-all"
+            className="p-2 rounded-xl text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100 transition-all shadow-sm"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -207,12 +207,12 @@ export default function NewOrderModal({ onClose, onSaved }: NewOrderModalProps) 
               <section className="space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div
-                    className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-black text-amber-300"
+                    className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-black text-amber-600 shadow-inner"
                     style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.2)' }}
                   >
                     S
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-amber-400">Sender</span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-amber-600">Sender</span>
                 </div>
 
                 <Field label="Name" icon={<User className="w-4 h-4" />}>
@@ -237,7 +237,7 @@ export default function NewOrderModal({ onClose, onSaved }: NewOrderModalProps) 
                   />
                 </Field>
 
-                <Field label="Pickup Address" icon={<MapPin className="w-4 h-4 text-amber-400" />}>
+                <Field label="Pickup Address" icon={<MapPin className="w-4 h-4 text-amber-500" />}>
                   <Autocomplete onLoad={onPickupLoad} onPlaceChanged={onPickupPlaceChanged}>
                     <input
                       id="pickup_address"
@@ -258,18 +258,18 @@ export default function NewOrderModal({ onClose, onSaved }: NewOrderModalProps) 
               </section>
 
               {/* Vertical divider (desktop only) */}
-              <div className="hidden md:block absolute left-1/2 top-52 bottom-6 w-px bg-white/5" />
+              <div className="hidden md:block absolute left-1/2 top-52 bottom-6 w-px bg-zinc-100" />
 
               {/* ── RECEIVER ── */}
               <section className="space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div
-                    className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-black text-indigo-300"
-                    style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)' }}
+                    className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-black text-radium-green shadow-inner"
+                    style={{ background: 'rgba(212,255,0,0.15)', border: '1px solid rgba(212,255,0,0.3)' }}
                   >
                     R
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-indigo-400">Receiver</span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-zinc-900">Receiver</span>
                 </div>
 
                 <Field label="Name" icon={<User className="w-4 h-4" />}>
@@ -294,7 +294,7 @@ export default function NewOrderModal({ onClose, onSaved }: NewOrderModalProps) 
                   />
                 </Field>
 
-                <Field label="Drop-off Address" icon={<MapPin className="w-4 h-4 text-indigo-400" />}>
+                <Field label="Drop-off Address" icon={<MapPin className="w-4 h-4 text-radium-green" />}>
                   <Autocomplete onLoad={onDropLoad} onPlaceChanged={onDropPlaceChanged}>
                     <input
                       id="drop_address"
@@ -318,10 +318,9 @@ export default function NewOrderModal({ onClose, onSaved }: NewOrderModalProps) 
             {/* Error */}
             {error && (
               <div
-                className="flex items-start gap-2 px-4 py-3 rounded-xl text-sm text-red-300"
-                style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}
+                className="flex items-start gap-2 px-4 py-3 rounded-xl text-sm text-red-600 bg-red-50 border border-red-200 shadow-sm"
               >
-                <X className="w-4 h-4 mt-0.5 shrink-0 text-red-400" />
+                <X className="w-4 h-4 mt-0.5 shrink-0 text-red-500" />
                 {error}
               </div>
             )}
@@ -329,13 +328,13 @@ export default function NewOrderModal({ onClose, onSaved }: NewOrderModalProps) 
 
           {/* Footer */}
           <div
-            className="flex items-center justify-between gap-3 px-6 py-4"
-            style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
+            className="flex items-center justify-between gap-3 px-6 py-4 bg-zinc-50"
+            style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}
           >
             <button
               onClick={onClose}
               disabled={saving}
-              className="px-5 py-2.5 rounded-xl text-sm font-semibold text-zinc-400 hover:text-white hover:bg-white/5 transition-all disabled:opacity-50"
+              className="px-6 py-3 rounded-[16px] text-sm font-bold text-zinc-600 hover:text-zinc-900 bg-white border border-zinc-200 shadow-sm hover:bg-zinc-50 transition-all disabled:opacity-50"
             >
               Cancel
             </button>
@@ -344,12 +343,9 @@ export default function NewOrderModal({ onClose, onSaved }: NewOrderModalProps) 
               id="save-order-btn"
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white transition-all active:scale-95 disabled:opacity-60"
+              className="flex items-center gap-2 px-6 py-3 rounded-[16px] text-sm font-bold text-zinc-950 transition-all active:scale-95 disabled:opacity-60 bg-radium-green hover:bg-radium-green-hover"
               style={{
-                background: saving
-                  ? 'rgba(99,102,241,0.5)'
-                  : 'linear-gradient(135deg,#818cf8,#6366f1)',
-                boxShadow: saving ? 'none' : '0 4px 20px rgba(99,102,241,0.4)',
+                boxShadow: saving ? 'none' : '0 4px 14px rgba(212,255,0,0.3)',
               }}
             >
               {saving ? (
@@ -384,7 +380,7 @@ function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="flex items-center gap-1.5 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+      <label className="flex items-center gap-1.5 text-xs font-bold text-zinc-600 uppercase tracking-wider">
         {icon}
         {label}
       </label>
@@ -394,7 +390,7 @@ function Field({
 }
 
 const inputClass =
-  'w-full px-3.5 py-2.5 rounded-xl text-sm text-white placeholder-zinc-600 outline-none transition-all ' +
-  'bg-zinc-800/60 border border-zinc-700/50 ' +
-  'focus:border-indigo-500/60 focus:ring-2 focus:ring-indigo-500/20 ' +
-  'hover:border-zinc-600'
+  'w-full px-4 py-3 rounded-xl text-sm text-zinc-900 placeholder-zinc-400 font-medium outline-none transition-all shadow-inner ' +
+  'bg-zinc-50 border border-zinc-200 ' +
+  'focus:border-radium-green focus:ring-4 focus:ring-radium-green/20 ' +
+  'hover:border-zinc-300'

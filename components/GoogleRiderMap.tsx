@@ -25,16 +25,23 @@ interface GoogleRiderMapProps {
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
 const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAP_ID || ''
 
-const DARK_MAP_STYLES: google.maps.MapTypeStyle[] = [
-  { elementType: 'geometry', stylers: [{ color: '#1a1a2e' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#1a1a2e' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#636e88' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2a2a4a' }] },
-  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#555580' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0e1626' }] },
-  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-  { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#2a2a4a' }] },
+const LIGHT_MAP_STYLES: google.maps.MapTypeStyle[] = [
+  { elementType: 'geometry', stylers: [{ color: '#f5f5f5' }] },
+  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#f5f5f5' }] },
+  { featureType: 'administrative.land_parcel', elementType: 'labels.text.fill', stylers: [{ color: '#bdbdbd' }] },
+  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#eeeeee' }] },
+  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
+  { featureType: 'road.arterial', elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#dadada' }] },
+  { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
+  { featureType: 'road.local', elementType: 'labels.text.fill', stylers: [{ color: '#9e9e9e' }] },
+  { featureType: 'transit.line', elementType: 'geometry', stylers: [{ color: '#e5e5e5' }] },
+  { featureType: 'transit.station', elementType: 'geometry', stylers: [{ color: '#eeeeee' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#c9c9c9' }] },
+  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#9e9e9e' }] },
 ]
 
 let optionsSet = false
@@ -64,8 +71,8 @@ export default function GoogleRiderMap({
     const wrapper = document.createElement('div')
     wrapper.innerHTML = `
       <div style="position:relative;display:flex;align-items:center;justify-content:center;">
-        <div style="position:absolute;width:48px;height:48px;border-radius:50%;background:rgba(99,102,241,0.25);animation:mapPulse 2s ease-in-out infinite;"></div>
-        <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#818cf8,#6366f1);border:3px solid white;box-shadow:0 0 16px rgba(99,102,241,0.6),0 2px 8px rgba(0,0,0,0.3);z-index:2;"></div>
+        <div style="position:absolute;width:48px;height:48px;border-radius:50%;background:rgba(212, 255, 0, 0.4);animation:mapPulse 2s ease-in-out infinite;"></div>
+        <div style="width:28px;height:28px;border-radius:50%;background:#d4ff00;border:4px solid #1c1c1e;box-shadow:0 0 16px rgba(0,0,0,0.2),0 4px 12px rgba(0,0,0,0.15);z-index:2;"></div>
       </div>
     `
     return wrapper
@@ -74,7 +81,7 @@ export default function GoogleRiderMap({
   const createNumberedPin = useCallback((num: number) => {
     const wrapper = document.createElement('div')
     wrapper.innerHTML = `
-      <div style="width:24px;height:24px;border-radius:50%;background:#27272a;border:2px solid #52525b;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#a1a1aa;font-family:system-ui,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,0.4);">${num}</div>
+      <div style="width:24px;height:24px;border-radius:50%;background:#f4f4f5;border:2px solid #e4e4e7;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#52525b;font-family:system-ui,sans-serif;box-shadow:0 4px 12px rgba(0,0,0,0.1);">${num}</div>
     `
     return wrapper
   }, [])
@@ -83,8 +90,8 @@ export default function GoogleRiderMap({
     const wrapper = document.createElement('div')
     wrapper.innerHTML = `
       <div style="position:relative;display:flex;align-items:center;justify-content:center;">
-        <div style="position:absolute;width:36px;height:36px;border-radius:50%;background:rgba(16,185,129,0.2);animation:mapPulse 2.5s ease-in-out infinite;"></div>
-        <div style="width:16px;height:16px;border-radius:50%;background:#10b981;border:3px solid white;box-shadow:0 0 12px rgba(16,185,129,0.5);z-index:2;"></div>
+        <div style="position:absolute;width:40px;height:40px;border-radius:50%;background:rgba(28, 28, 30, 0.1);animation:mapPulse 2.5s ease-in-out infinite;"></div>
+        <div style="width:20px;height:20px;border-radius:50%;background:#1c1c1e;border:3px solid #d4ff00;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:2;"></div>
       </div>
     `
     return wrapper
@@ -110,8 +117,8 @@ export default function GoogleRiderMap({
         disableDefaultUI: true,
         zoomControl: false,
         gestureHandling: 'greedy',
-        styles: MAP_ID ? undefined : DARK_MAP_STYLES,
-        backgroundColor: '#1a1a2e',
+        styles: MAP_ID ? undefined : LIGHT_MAP_STYLES,
+        backgroundColor: '#fdfdfd',
       })
       setMapReady(true)
     })
@@ -183,18 +190,18 @@ export default function GoogleRiderMap({
         map,
         suppressMarkers: true,
         polylineOptions: {
-          strokeColor: phase === 'COLLECTING' ? '#f59e0b' : '#6366f1',
-          strokeOpacity: 0.85,
-          strokeWeight: 5,
+          strokeColor: '#1c1c1e',
+          strokeOpacity: 0.9,
+          strokeWeight: 6,
         },
       })
     } else {
       directionsRendererRef.current.setMap(map)
       directionsRendererRef.current.setOptions({
         polylineOptions: {
-          strokeColor: phase === 'COLLECTING' ? '#f59e0b' : '#6366f1',
-          strokeOpacity: 0.85,
-          strokeWeight: 5,
+          strokeColor: '#1c1c1e',
+          strokeOpacity: 0.9,
+          strokeWeight: 6,
         }
       })
     }
@@ -262,8 +269,8 @@ export default function GoogleRiderMap({
         icons: [{
           icon: {
             path: 'M 0,-1 0,1',
-            strokeOpacity: 0.3,
-            strokeColor: phase === 'COLLECTING' ? '#f59e0b' : '#6366f1',
+            strokeOpacity: 0.4,
+            strokeColor: '#1c1c1e',
             scale: 3,
           },
           offset: '0',
@@ -294,7 +301,7 @@ export default function GoogleRiderMap({
           backdrop-blur-md border
           ${phase === 'COLLECTING'
             ? 'bg-amber-500/20 border-amber-500/30 text-amber-300'
-            : 'bg-indigo-500/20 border-indigo-500/30 text-indigo-300'
+            : 'bg-radium-green/20 border-radium-green/30 text-radium-green'
           }
         `}>
           {phase === 'COLLECTING' ? '📦 Collecting' : '🚀 Delivering'}
@@ -302,23 +309,31 @@ export default function GoogleRiderMap({
       </div> */}
 
       {/* ETA / Distance chip */}
-      {routeInfo && (
-        <div className="absolute top-6 right-4 z-10">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md bg-zinc-900/70 border border-white/10">
+      {routeInfo ? (
+        <div className="absolute top-6 right-4 z-50">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md bg-zinc-900/70 border border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.2)]">
             <span className="text-[10px] font-black text-white">{routeInfo.duration}</span>
             <span className="w-px h-3 bg-white/20" />
-            <span className="text-[10px] font-bold text-zinc-400">{routeInfo.distance}</span>
+            <span className="text-[10px] font-bold text-white">{routeInfo.distance}</span>
           </div>
         </div>
-      )}
+      ) : activeTarget ? (
+        <div className="absolute top-6 right-4 z-50">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md bg-zinc-900/70 border border-white/10 opacity-70">
+            <span className="text-[10px] font-black text-zinc-400">-- min</span>
+            <span className="w-px h-3 bg-white/20" />
+            <span className="text-[10px] font-bold text-zinc-500">-- mi</span>
+          </div>
+        </div>
+      ) : null}
 
       {/* Fallback when no API key */}
       {!API_KEY && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900/90 backdrop-blur-sm z-20">
           <div className="text-zinc-500 text-sm font-mono text-center px-6">
             <p className="text-lg font-bold text-zinc-400 mb-2">Map Preview</p>
-            <p>Add <code className="text-indigo-400">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code></p>
-            <p>to your <code className="text-indigo-400">.env</code> file to enable the live map.</p>
+            <p>Add <code className="text-radium-green">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code></p>
+            <p>to your <code className="text-radium-green">.env</code> file to enable the live map.</p>
           </div>
         </div>
       )}
