@@ -168,6 +168,19 @@ export default function LoginPage() {
                             Create Account
                         </Link>
                     </div>
+
+                    {/* Rider signup link */}
+                    <div className="mt-5 pt-5 border-t border-white/5 text-center">
+                        <p className="text-[11px] text-zinc-600">
+                            Are you a rider?{' '}
+                            <Link
+                                href="/register/rider"
+                                className="text-zinc-400 hover:text-white font-semibold transition-colors underline underline-offset-2"
+                            >
+                                Register here →
+                            </Link>
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>

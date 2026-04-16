@@ -453,7 +453,7 @@ export default function RiderPage({ params }: PageProps) {
             </p>
 
             <button
-              onClick={() => (window.location.href = '/dashboard')}
+              onClick={() => (window.location.href = '/rider-home')}
               className="px-8 py-4 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-2xl font-semibold text-sm transition-all flex items-center justify-center gap-3 backdrop-blur-md"
             >
               Dashboard Return
