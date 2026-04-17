@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  PlusCircle, RefreshCw, ArrowRight, PackagePlus, Activity,
-  Route, Box, User, LogOut, X, Truck, Layers, ChevronRight,
-  Radio, IndianRupee, CheckCircle2, Zap, MapPin
+  PlusCircle, RefreshCw, PackagePlus,
+  Box, User, LogOut, X, Layers, ChevronRight,
+  Radio, IndianRupee, CheckCircle2, Zap, Clock
 } from 'lucide-react'
 import { supabase } from '@/utils/supabase/client'
 import NewOrderModal from '@/components/NewOrderModal'
@@ -78,13 +78,26 @@ export default function Dashboard() {
 
       if (!activeUser) { router.push('/login'); return }
 
+      // ── ROLE GUARD: riders are not allowed here ──────────────────────────
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', activeUser.id)
+        .maybeSingle()
+
+      if (profile?.role === 'rider') {
+        router.replace('/rider-home')
+        return
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
       const { data: tenant } = await supabase
         .from('tenants')
         .select('id, name, payout_rate')
         .eq('owner_id', activeUser.id)
         .single()
 
-      if (!tenant) { setLoading(false); return }
+      if (!tenant) { router.replace('/login'); return }
 
       setUserEmail(activeUser.email || null)
       setActiveTenantId(tenant.id)
@@ -100,13 +113,19 @@ export default function Dashboard() {
   }
 
   // ── Overview data ─────────────────────────────────────────────────────────
+  // FIX: show both 'assigned' (rider accepted offer) and 'active' (in delivery)
   const fetchData = useCallback(async () => {
     if (!activeTenantId) return
     setLoading(true)
     try {
       const [{ data: pendingOrders }, { data: activeBatches }] = await Promise.all([
         supabase.from('orders').select('*, tenants(name)').eq('status', 'pending').eq('tenant_id', activeTenantId),
-        supabase.from('batches').select('*, tenants(name)').eq('status', 'active').eq('tenant_id', activeTenantId).order('created_at', { ascending: true }),
+        supabase
+          .from('batches')
+          .select('*, tenants(name), profiles(full_name)')
+          .in('status', ['assigned', 'active'])
+          .eq('tenant_id', activeTenantId)
+          .order('created_at', { ascending: true }),
       ])
       setOrders(pendingOrders || [])
       setBatches(activeBatches || [])
@@ -124,7 +143,8 @@ export default function Dashboard() {
     if (!activeTenantId) return
     setDispatchLoading(true)
     try {
-      const [{ data: uBatches }, { data: riders }] = await Promise.all([
+      // Fetch unassigned batches + riders who are online AND have no current assignment
+      const [{ data: uBatches }, { data: allOnlineRiders }, { data: busyRiders }] = await Promise.all([
         supabase
           .from('batches')
           .select('id, created_at, status')
@@ -133,11 +153,20 @@ export default function Dashboard() {
           .order('created_at', { ascending: true }),
         supabase
           .from('profiles')
-          .select('id, full_name, is_online, last_location')
-          .eq('is_online', true),
+          .select('id, full_name, is_online')
+          .eq('is_online', true)
+          .eq('role', 'rider'),
+        // FIX: exclude riders who already have an assigned/active batch
+        supabase
+          .from('batches')
+          .select('rider_id')
+          .in('status', ['assigned', 'active'])
+          .not('rider_id', 'is', null),
       ])
+      const busyRiderIds = new Set((busyRiders || []).map((b: any) => b.rider_id))
+      const availableRiders = (allOnlineRiders || []).filter((r: any) => !busyRiderIds.has(r.id))
       setUnassignedBatches(uBatches || [])
-      setOnlineRiders(riders || [])
+      setOnlineRiders(availableRiders)
     } finally {
       setDispatchLoading(false)
     }
@@ -147,23 +176,107 @@ export default function Dashboard() {
     if (activeTab === 'dispatch' && activeTenantId) fetchDispatchData()
   }, [activeTab, activeTenantId, fetchDispatchData])
 
-  // ── Dispatch a batch ──────────────────────────────────────────────────────
+  // ── Realtime: persistent channel, never torn down on tab switch ────────────
+  // KEY FIXES:
+  // 1. activeTab removed from deps — tab changes no longer kill/rebuild channel
+  // 2. fetchData/fetchDispatchData kept in refs — closures never go stale
+  // 3. profiles UPDATE always patches onlineRiders regardless of active tab
+  const fetchDispatchDataRef = useRef(fetchDispatchData)
+  useEffect(() => { fetchDispatchDataRef.current = fetchDispatchData }, [fetchDispatchData])
+  const fetchDataRef = useRef(fetchData)
+  useEffect(() => { fetchDataRef.current = fetchData }, [fetchData])
+
+  useEffect(() => {
+    if (!activeTenantId) return
+
+    const channel = supabase
+      .channel(`admin-realtime-${activeTenantId}`)
+      // ── Batch changes: re-fetch both views ───────────────────────────────
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'batches' }, () => {
+        fetchDataRef.current()
+        fetchDispatchDataRef.current()
+      })
+      // ── Profile UPDATE: patch rider list in-place ─────────────────────────
+      // Now works because REPLICA IDENTITY FULL sends all columns in payload.new
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles' },
+        (payload) => {
+          const updated = payload.new as any
+          if (!updated?.id) return
+          if (updated.role && updated.role !== 'rider') return // ignore non-riders
+
+          setOnlineRiders((prev) => {
+            const wasInList = prev.some((r) => r.id === updated.id)
+
+            if (updated.is_online === true && !wasInList) {
+              // Rider came online — add immediately
+              return [...prev, { id: updated.id, full_name: updated.full_name, is_online: true }]
+            } else if (updated.is_online === false && wasInList) {
+              // Rider went offline — remove immediately
+              return prev.filter((r) => r.id !== updated.id)
+            } else if (wasInList) {
+              // Other field changed — update in-place
+              return prev.map((r) => r.id === updated.id ? { ...r, ...updated } : r)
+            }
+            return prev
+          })
+        }
+      )
+      .subscribe((status, err) => {
+        console.log(`[realtime] admin channel status: ${status}`, err || '')
+        if (status === 'SUBSCRIBED') {
+          console.log('[realtime] ✅ WebSocket connected — listening for profiles + batches changes')
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('[realtime] ❌ Channel error:', err)
+          fetchDispatchDataRef.current()
+        } else if (status === 'TIMED_OUT') {
+          console.warn('[realtime] ⚠️ Channel timed out — will retry')
+        } else if (status === 'CLOSED') {
+          console.warn('[realtime] 🔌 Channel closed')
+        }
+      })
+
+    return () => { supabase.removeChannel(channel) }
+  }, [activeTenantId]) // ← only re-create when tenant changes
+
+
+  // ── Dispatch a batch (Step 3: Optimistic UI) ──────────────────────────────
+  // Immediately removes the batch from the local unassigned list so the UI
+  // feels instant. If the server call fails, we restore the previous state
+  // and show an error toast.
   const dispatchBatch = async (riderId: string) => {
     if (!selectedBatchId) { setToast('Select a batch first'); return }
     setDispatching(true)
-    const { error } = await supabase
-      .from('batches')
-      .update({ rider_id: riderId, status: 'assigned' })
-      .eq('id', selectedBatchId)
 
-    if (error) {
-      alert('Dispatch failed: ' + error.message)
-    } else {
-      setToast(`Batch dispatched to rider successfully!`)
-      setSelectedBatchId(null)
-      await fetchDispatchData()
+    // ── Snapshot current state for rollback ───────────────────────────────
+    const prevUnassigned = unassignedBatches
+    const prevOnlineRiders = onlineRiders
+    const batchBeingDispatched = selectedBatchId
+
+    // ── Optimistic update: remove batch + rider from lists immediately ────
+    setUnassignedBatches((prev) => prev.filter((b) => b.id !== batchBeingDispatched))
+    setOnlineRiders((prev) => prev.filter((r) => r.id !== riderId))
+    setSelectedBatchId(null)
+
+    try {
+      const { error } = await supabase
+        .from('batches')
+        .update({ rider_id: riderId, status: 'assigned' })
+        .eq('id', batchBeingDispatched)
+
+      if (error) throw new Error(error.message)
+
+      setToast('Batch dispatched to rider successfully!')
+    } catch (err) {
+      // ── Rollback on failure ────────────────────────────────────────────
+      setUnassignedBatches(prevUnassigned)
+      setOnlineRiders(prevOnlineRiders)
+      setSelectedBatchId(batchBeingDispatched)
+      setToast(`Dispatch failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      setDispatching(false)
     }
-    setDispatching(false)
   }
 
   // ── Save payout rate ──────────────────────────────────────────────────────
@@ -321,6 +434,9 @@ export default function Dashboard() {
                     <span className="text-[10px] font-bold text-zinc-950 bg-radium-green/20 px-2 py-1 rounded-md border border-radium-green/30">+5.2%</span>
                   </div>
                   <div className="text-4xl font-bold mb-2 text-zinc-900">{loading ? '--' : orders.length}</div>
+                  {!loading && orders.length > 0 && (
+                    <p className="text-xs text-zinc-500 font-medium">{orders.length} order{orders.length !== 1 ? 's' : ''} awaiting batching</p>
+                  )}
                   <div className="w-full h-10 mt-4 flex items-end gap-1 opacity-60">
                     {[4, 7, 3, 8, 5, 9, 6, 10].map((h, i) => (
                       <div key={i} className="flex-1 bg-zinc-900/10 rounded-t-sm group-hover:bg-radium-green transition-all" style={{ height: `${h * 10}%` }} />
@@ -401,8 +517,9 @@ export default function Dashboard() {
 
                 {/* Active Batches */}
                 <div className="glass-card flex flex-col overflow-hidden w-full p-4 mb-4">
-                  <div className="p-4 border-b border-zinc-100 mb-2">
+                  <div className="p-4 border-b border-zinc-100 mb-2 flex items-center justify-between">
                     <h2 className="text-base font-bold text-zinc-900 tracking-wide">Active Batches</h2>
+                    <span className="text-[10px] font-bold bg-zinc-100 text-zinc-500 px-2 py-0.5 rounded-md">{batches.length} total</span>
                   </div>
                   <div className="overflow-x-auto w-full">
                     <table className="w-full text-left text-sm border-collapse">
@@ -411,15 +528,15 @@ export default function Dashboard() {
                           <th className="px-5 py-4 border-b border-zinc-100 text-center">View</th>
                           <th className="px-5 py-4 border-b border-zinc-100 text-center">ID</th>
                           <th className="px-5 py-4 border-b border-zinc-100 text-center">Rider</th>
+                          <th className="px-5 py-4 border-b border-zinc-100 text-center">Status</th>
                           <th className="px-5 py-4 border-b border-zinc-100 text-center">Date</th>
-                          <th className="px-5 py-4 border-b border-zinc-100 text-center">Progress</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-100 text-zinc-700 font-medium">
                         {batches.length === 0 ? (
                           <tr><td colSpan={5} className="px-5 py-12 text-center text-zinc-500">No active batches.</td></tr>
                         ) : (
-                          batches.map((batch, idx) => (
+                          batches.map((batch) => (
                             <tr key={batch.id} className="hover:bg-zinc-50/50 transition-colors">
                               <td className="px-5 py-4 text-center">
                                 <a href={`/rider/${batch.id}`} className="text-[10px] px-4 py-2 rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 transition-all font-bold inline-block shadow-md">Track</a>
@@ -430,15 +547,21 @@ export default function Dashboard() {
                                   <div className="w-8 h-8 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center">
                                     <User className="w-4 h-4 text-zinc-400" />
                                   </div>
-                                  <span className="text-xs font-bold">Rider {idx + 1}</span>
+                                  <span className="text-xs font-bold">{(batch as any).profiles?.full_name || 'Assigned'}</span>
                                 </div>
+                              </td>
+                              <td className="px-5 py-4 text-center">
+                                {batch.status === 'assigned' ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-md">
+                                    <Clock className="w-3 h-3" /> Offer Sent
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded-md">
+                                    <CheckCircle2 className="w-3 h-3" /> Active
+                                  </span>
+                                )}
                               </td>
                               <td className="px-5 py-4 text-zinc-500 text-xs text-center font-bold">{new Date(batch.created_at).toLocaleDateString()}</td>
-                              <td className="px-5 py-4 flex justify-center">
-                                <div className="w-20 h-2 bg-zinc-100 rounded-full overflow-hidden shadow-inner mt-2">
-                                  <div className="h-full bg-radium-green w-1/2 rounded-full" />
-                                </div>
-                              </td>
                             </tr>
                           ))
                         )}

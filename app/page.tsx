@@ -31,7 +31,7 @@ export default function LandingPage() {
             <Link href="/login" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors hidden sm:block">
               Log in
             </Link>
-            <Link href="/register" className="h-10 px-5 bg-radium-green hover:bg-radium-green-hover text-zinc-900 rounded-full text-sm font-bold flex items-center gap-2 transition-all shadow-[0_0_20px_rgba(212,255,0,0.3)]">
+            <Link href="/register/business" className="h-10 px-5 bg-radium-green hover:bg-radium-green-hover text-zinc-900 rounded-full text-sm font-bold flex items-center gap-2 transition-all shadow-[0_0_20px_rgba(212,255,0,0.3)]">
               Get Started <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -55,7 +55,7 @@ export default function LandingPage() {
         </p>
 
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full justify-center">
-          <Link href="/register" className="h-14 px-8 bg-zinc-100 text-zinc-950 hover:bg-white rounded-full text-base font-bold flex items-center justify-center gap-2 transition-all shadow-[0_0_40px_rgba(255,255,255,0.1)] w-full sm:w-auto hover:scale-105">
+          <Link href="/register/business" className="h-14 px-8 bg-zinc-100 text-zinc-950 hover:bg-white rounded-full text-base font-bold flex items-center justify-center gap-2 transition-all shadow-[0_0_40px_rgba(255,255,255,0.1)] w-full sm:w-auto hover:scale-105">
             Start Free Trial <Zap className="w-5 h-5" />
           </Link>
           <Link href="/login" className="h-14 px-8 bg-zinc-900 border border-white/10 hover:bg-zinc-800 text-white rounded-full text-base font-bold flex items-center justify-center gap-2 transition-all w-full sm:w-auto">

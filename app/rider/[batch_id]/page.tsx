@@ -84,6 +84,9 @@ export default function RiderPage({ params }: PageProps) {
 
   // ── Core state ─────────────────────────────────────────────────────────
 
+  // Keep a stable ref to userId for beacon callbacks (closures don't capture state updates)
+  const riderIdRef = useRef<string | null>(null)
+
   const [allOrders, setAllOrders] = useState<BatchOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [currentPhase, setCurrentPhase] = useState<Phase>('COLLECTING')
@@ -202,10 +205,45 @@ export default function RiderPage({ params }: PageProps) {
 
   // ── Fetch batch data ───────────────────────────────────────────────────
 
+  // ── Layer 2: sendBeacon on tab close / crash ────────────────────────────
+  // Fires even as the tab is being destroyed so the dashboard stays accurate.
+  useEffect(() => {
+    const markOffline = () => {
+      if (!riderIdRef.current) return
+      const payload = JSON.stringify({ riderId: riderIdRef.current })
+      navigator.sendBeacon('/api/rider/offline', new Blob([payload], { type: 'application/json' }))
+    }
+    window.addEventListener('beforeunload', markOffline)
+    window.addEventListener('pagehide', markOffline)
+    return () => {
+      window.removeEventListener('beforeunload', markOffline)
+      window.removeEventListener('pagehide', markOffline)
+    }
+  }, [])
+
   useEffect(() => {
     async function load() {
       if (!batch_id) return
       setLoading(true)
+
+      // ── Auth + role guard ─────────────────────────────────────────────────
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { router.replace('/login'); return }
+
+      // Store rider ID for the beacon callback
+      riderIdRef.current = user.id
+
+      const { data: riderProfile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (!riderProfile || riderProfile.role !== 'rider') {
+        router.replace('/dashboard')
+        return
+      }
+      // ─────────────────────────────────────────────────────────────────────
 
       const { data, error } = await supabase
         .from('orders')

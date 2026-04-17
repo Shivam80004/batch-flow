@@ -160,7 +160,7 @@ export default function RiderRegisterPage() {
           </div>
           <div className="mt-4 text-center text-xs font-medium text-zinc-600">
             Business owner?{' '}
-            <Link href="/register" className="text-zinc-400 hover:text-white transition-colors ml-1">
+            <Link href="/register/business" className="text-zinc-400 hover:text-white transition-colors ml-1">
               Register a company
             </Link>
           </div>

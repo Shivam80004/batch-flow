@@ -5,39 +5,36 @@ import { useRouter } from 'next/navigation'
 import {
   Loader2, Wifi, WifiOff, MapPin, Package, Truck,
   CheckCircle, X, ArrowRight, IndianRupee, Route,
-  Bell, Bike, LogOut
+  Bell, Bike, LogOut, AlertTriangle, RefreshCw
 } from 'lucide-react'
 import { supabase } from '@/utils/supabase/client'
 import { haversineDistance } from '@/utils/logisticsEngine'
 import { parsePoint } from '@/utils/routing'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const DEFAULT_PAYOUT_RATE = 8 // ₹ per km
-const LOCATION_UPDATE_INTERVAL_MS = 30_000 // 30 seconds
+const DEFAULT_PAYOUT_RATE = 8
+const LOCATION_UPDATE_INTERVAL_MS = 30_000
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function toWkt(lat: number, lng: number) {
   return `SRID=4326;POINT(${lng} ${lat})`
 }
 
-function safeParsePoint(pt: string) {
+function safeParsePoint(pt: string | null | undefined) {
+  if (!pt) return null
   try { return parsePoint(pt) } catch { return null }
 }
 
 function calcBatchKm(orders: any[]) {
   return orders.reduce((total, order) => {
-    try {
-      const pickup = safeParsePoint(order.pickup_pt)
-      const drop = safeParsePoint(order.drop_pt)
-      if (pickup && drop) return total + haversineDistance(pickup, drop)
-    } catch { /* skip */ }
+    const pickup = safeParsePoint(order.pickup_pt)
+    const drop = safeParsePoint(order.drop_pt)
+    if (pickup && drop) return total + haversineDistance(pickup, drop)
     return total
   }, 0)
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-
 export default function RiderHomePage() {
   const router = useRouter()
 
@@ -53,13 +50,19 @@ export default function RiderHomePage() {
   const [payoutRate, setPayoutRate] = useState(DEFAULT_PAYOUT_RATE)
   const [accepting, setAccepting] = useState(false)
   const [declining, setDeclining] = useState(false)
+  const [declineSuccess, setDeclineSuccess] = useState(false)
+  const [newJobFlash, setNewJobFlash] = useState(false) // Step 2: highlights new job arrival
 
-  // Location
+  // GPS
   const watchIdRef = useRef<number | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const lastPosRef = useRef<{ lat: number; lng: number } | null>(null)
+  const [gpsError, setGpsError] = useState(false)
 
-  // ── Fetch batch orders ────────────────────────────────────────────────────
+  // Keep a stable ref to userId so beacon callbacks can read it
+  const userIdRef = useRef<string | null>(null)
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
   const fetchBatchOrders = useCallback(async (batchId: string) => {
     const { data } = await supabase
       .from('orders')
@@ -68,22 +71,60 @@ export default function RiderHomePage() {
     setBatchOrders(data || [])
   }, [])
 
-  // ── Boot: get user + profile + existing assignment ────────────────────────
+  const applyBatch = useCallback(async (batch: any) => {
+    setAssignedBatch(batch)
+    setPayoutRate(batch.tenants?.payout_rate ?? DEFAULT_PAYOUT_RATE)
+    await fetchBatchOrders(batch.id)
+  }, [fetchBatchOrders])
+
+  // Step 2: Play a short notification beep using Web Audio API (no external deps)
+  const playNotificationSound = useCallback(() => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+      // Two-tone chime: high note then resolving note
+      const playTone = (freq: number, startAt: number, duration: number, gain: number) => {
+        const osc = ctx.createOscillator()
+        const gainNode = ctx.createGain()
+        osc.connect(gainNode)
+        gainNode.connect(ctx.destination)
+        osc.type = 'sine'
+        osc.frequency.value = freq
+        gainNode.gain.setValueAtTime(gain, ctx.currentTime + startAt)
+        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startAt + duration)
+        osc.start(ctx.currentTime + startAt)
+        osc.stop(ctx.currentTime + startAt + duration)
+      }
+      playTone(880, 0,    0.15, 0.4)  // A5 — alert
+      playTone(1100, 0.18, 0.2,  0.3)  // C#6 — resolve
+      playTone(880, 0.42, 0.25, 0.25) // A5 repeat — emphasis
+    } catch {
+      // AudioContext may be unavailable in some environments — silent fail
+    }
+  }, [])
+
+  // ── Boot ────────────────────────────────────────────────────────────────────
   useEffect(() => {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
       setUserId(user.id)
+      userIdRef.current = user.id
 
-      // Fetch profile
+      // Profile
       const { data: prof } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single()
 
+      // ── ROLE GUARD: only riders are allowed here ───────────────────────
+      if (prof && prof.role !== 'rider') {
+        router.replace('/dashboard')
+        return
+      }
+      // ───────────────────────────────────────────────────────────
+
       if (!prof) {
-        // First-time: create profile row
         const { data: newProf } = await supabase
           .from('profiles')
           .insert({ id: user.id, role: 'rider', is_online: false })
@@ -94,7 +135,7 @@ export default function RiderHomePage() {
         setProfile(prof)
       }
 
-      // Check if already assigned or active
+      // Check existing assignment
       const { data: batch } = await supabase
         .from('batches')
         .select('*, tenants(payout_rate)')
@@ -109,45 +150,70 @@ export default function RiderHomePage() {
           router.push(`/rider/${batch.id}`)
           return
         }
-        setAssignedBatch(batch)
-        setPayoutRate(batch.tenants?.payout_rate ?? DEFAULT_PAYOUT_RATE)
-        await fetchBatchOrders(batch.id)
+        await applyBatch(batch)
       }
 
       setLoading(false)
     }
     init()
-  }, [router, fetchBatchOrders])
 
-  // ── Realtime: listen for batch assignment ─────────────────────────────────
+    // ── Layer 1: Auth state listener — catches token expiry / forced sign-out ──
+    // When Supabase can't refresh the token it fires SIGNED_OUT. We set the
+    // rider offline immediately so the dashboard never shows a ghost rider.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event) => {
+        if (event === 'SIGNED_OUT' && userIdRef.current) {
+          await supabase
+            .from('profiles')
+            .update({ is_online: false })
+            .eq('id', userIdRef.current)
+          // Clear the ref so we don't double-fire
+          userIdRef.current = null
+        }
+      }
+    )
+
+    return () => { subscription.unsubscribe() }
+  }, [router, applyBatch])
+
+  // ── Realtime: batch subscription with notification sound (Step 2) ────────────
+  // FIX: Supabase realtime UPDATE filter requires the filter to be true BEFORE
+  // the update too (old row). Since rider_id is NULL before assignment, we subscribe
+  // to ALL batch updates and filter client-side by rider_id matching our userId.
   useEffect(() => {
     if (!userId) return
 
     const channel = supabase
-      .channel(`rider-assignments-${userId}`)
+      .channel(`rider-batch-watch-${userId}`)
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*', // INSERT + UPDATE + DELETE
           schema: 'public',
           table: 'batches',
-          filter: `rider_id=eq.${userId}`,
         },
         async (payload) => {
-          const newStatus = payload.new?.status
+          const row = payload.new as any
+          if (!row || row.rider_id !== userId) return // not for us
+
+          const newStatus = row.status
+
           if (newStatus === 'assigned') {
+            // Fetch full batch with tenant join
             const { data: batch } = await supabase
               .from('batches')
               .select('*, tenants(payout_rate)')
-              .eq('id', payload.new.id)
+              .eq('id', row.id)
               .single()
             if (batch) {
-              setAssignedBatch(batch)
-              setPayoutRate(batch.tenants?.payout_rate ?? DEFAULT_PAYOUT_RATE)
-              await fetchBatchOrders(batch.id)
+              await applyBatch(batch)
+              // ── Step 2: Play sound + flash the job card ────────────────────
+              playNotificationSound()
+              setNewJobFlash(true)
+              setTimeout(() => setNewJobFlash(false), 2000)
             }
           } else if (newStatus === 'active') {
-            router.push(`/rider/${payload.new.id}`)
+            router.push(`/rider/${row.id}`)
           } else if (newStatus === 'unassigned') {
             setAssignedBatch(null)
             setBatchOrders([])
@@ -157,45 +223,96 @@ export default function RiderHomePage() {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [userId, router, fetchBatchOrders])
+  }, [userId, router, applyBatch, playNotificationSound])
 
-  // ── Location tracking (only when online) ─────────────────────────────────
+  // ── Layer 2: Tab close / refresh / crash — sendBeacon ───────────────────────
+  // navigator.sendBeacon is the ONLY reliable way to fire a network request
+  // as a tab is closing. We post to our service-role API route which can set
+  // is_online = false even after the JWT has expired.
+  useEffect(() => {
+    const markOffline = () => {
+      if (!userIdRef.current) return
+      const payload = JSON.stringify({ riderId: userIdRef.current })
+      // sendBeacon — fires even as tab closes, browser queues it
+      navigator.sendBeacon('/api/rider/offline', new Blob([payload], { type: 'application/json' }))
+    }
+
+    const handleVisibilityChange = () => {
+      // When the document becomes hidden (phone lock screen, tab switch)
+      // we don't mark offline yet, but we do on 'pagehide' / 'beforeunload'
+    }
+
+    window.addEventListener('beforeunload', markOffline)
+    window.addEventListener('pagehide', markOffline)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('beforeunload', markOffline)
+      window.removeEventListener('pagehide', markOffline)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [])
+
+  // ── GPS tracking ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!profile?.is_online || !userId) return
+    setGpsError(false)
 
     const updateLocation = async () => {
       if (!lastPosRef.current) return
       const { lat, lng } = lastPosRef.current
+      // Update location + heartbeat timestamp together so the DB cron can
+      // auto-expire riders whose app has crashed or been force-closed.
       await supabase
         .from('profiles')
-        .update({ last_location: toWkt(lat, lng) })
+        .update({ last_location: toWkt(lat, lng), last_seen_at: new Date().toISOString() })
         .eq('id', userId)
     }
 
-    // Start GPS watch
+    if (!navigator.geolocation) {
+      setGpsError(true)
+      return
+    }
+
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
         lastPosRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        setGpsError(false)
       },
-      (err) => console.error('GPS error:', err),
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+      (err) => {
+        console.error('GPS error:', err)
+        setGpsError(true)
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
     )
 
-    // Push to Supabase every 30s
-    updateLocation() // immediate first push
+    updateLocation()
     timerRef.current = setInterval(updateLocation, LOCATION_UPDATE_INTERVAL_MS)
 
     return () => {
       if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current)
       if (timerRef.current) clearInterval(timerRef.current)
+      watchIdRef.current = null
+      timerRef.current = null
     }
   }, [profile?.is_online, userId])
 
-  // ── Toggle online / offline ───────────────────────────────────────────────
+  // ── Toggle online / offline ──────────────────────────────────────────────────
   const handleToggleOnline = async () => {
     if (!userId || !profile) return
     setToggling(true)
     const next = !profile.is_online
+
+    // If going offline, stop GPS immediately
+    if (!next) {
+      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current)
+      if (timerRef.current) clearInterval(timerRef.current)
+      watchIdRef.current = null
+      timerRef.current = null
+      lastPosRef.current = null
+      setGpsError(false)
+    }
+
     const { error } = await supabase
       .from('profiles')
       .update({ is_online: next })
@@ -204,7 +321,7 @@ export default function RiderHomePage() {
     setToggling(false)
   }
 
-  // ── Accept job ────────────────────────────────────────────────────────────
+  // ── Accept job ───────────────────────────────────────────────────────────────
   const handleAccept = async () => {
     if (!assignedBatch) return
     setAccepting(true)
@@ -212,34 +329,67 @@ export default function RiderHomePage() {
       .from('batches')
       .update({ status: 'active' })
       .eq('id', assignedBatch.id)
-    if (error) { alert('Failed to accept job: ' + error.message); setAccepting(false); return }
+    if (error) {
+      alert('Failed to accept job: ' + error.message)
+      setAccepting(false)
+      return
+    }
     router.push(`/rider/${assignedBatch.id}`)
   }
 
-  // ── Decline job ───────────────────────────────────────────────────────────
+  // ── Decline job ──────────────────────────────────────────────────────────────
+  // Uses a server API route with service-role key to bypass the RLS WITH CHECK
+  // restriction that blocks riders from setting rider_id = null directly.
   const handleDecline = async () => {
-    if (!assignedBatch) return
+    if (!assignedBatch || !userId) return
     setDeclining(true)
-    await supabase
-      .from('batches')
-      .update({ rider_id: null, status: 'unassigned' })
-      .eq('id', assignedBatch.id)
-    setAssignedBatch(null)
-    setBatchOrders([])
-    setDeclining(false)
+
+    try {
+      const res = await fetch('/api/rider/decline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batchId: assignedBatch.id, riderId: userId }),
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        alert('Failed to decline: ' + (data.error || 'Unknown error'))
+        setDeclining(false)
+        return
+      }
+
+      setAssignedBatch(null)
+      setBatchOrders([])
+      setDeclineSuccess(true)
+      setTimeout(() => setDeclineSuccess(false), 3000)
+    } catch (err) {
+      alert('Failed to decline: Network error')
+    } finally {
+      setDeclining(false)
+    }
   }
 
   const handleLogout = async () => {
+    // ── Layer 3: Explicit logout — always set offline first ──────────────────
+    // This is the most reliable path. We update is_online before signOut so
+    // the RLS session is still valid when we make the DB call.
+    if (userId) {
+      await supabase
+        .from('profiles')
+        .update({ is_online: false })
+        .eq('id', userId)
+      userIdRef.current = null // prevent double-fire from auth state listener
+    }
     await supabase.auth.signOut()
     router.push('/login')
   }
 
-  // ── Computed values ───────────────────────────────────────────────────────
+  // ── Computed ─────────────────────────────────────────────────────────────────
   const estimatedKm = calcBatchKm(batchOrders)
   const estimatedPayout = Math.round(estimatedKm * payoutRate)
   const isOnline = profile?.is_online ?? false
 
-  // ── Loading ───────────────────────────────────────────────────────────────
+  // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-zinc-950">
@@ -251,9 +401,9 @@ export default function RiderHomePage() {
     )
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
   //  JOB OFFER STATE
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
   if (assignedBatch) {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center font-sans p-4">
@@ -266,6 +416,11 @@ export default function RiderHomePage() {
             0%, 100% { box-shadow: 0 0 0 0 rgba(212,255,0,0.4); }
             50%  { box-shadow: 0 0 0 12px rgba(212,255,0,0); }
           }
+          @keyframes flashRing {
+            0%   { box-shadow: 0 0 0 0   rgba(212,255,0,0.9); }
+            40%  { box-shadow: 0 0 0 20px rgba(212,255,0,0.2); }
+            100% { box-shadow: 0 0 0 0   rgba(212,255,0,0); }
+          }
         `}</style>
 
         {/* Glows */}
@@ -276,7 +431,10 @@ export default function RiderHomePage() {
 
         <div
           className="relative z-10 w-full max-w-md"
-          style={{ animation: 'offerSlideUp 0.6s cubic-bezier(0.16,1,0.3,1) forwards' }}
+          style={{
+            animation: 'offerSlideUp 0.6s cubic-bezier(0.16,1,0.3,1) forwards',
+            ...(newJobFlash ? { animation: 'offerSlideUp 0.6s cubic-bezier(0.16,1,0.3,1) forwards, flashRing 0.6s ease-out 3' } : {}),
+          }}
         >
           {/* Alert badge */}
           <div className="flex items-center justify-center mb-6">
@@ -307,7 +465,6 @@ export default function RiderHomePage() {
 
               {/* Stats grid */}
               <div className="grid grid-cols-3 gap-3">
-                {/* Stops */}
                 <div className="bg-zinc-800/60 rounded-2xl p-4 flex flex-col gap-1">
                   <div className="flex items-center gap-1.5 mb-1">
                     <Truck className="w-3.5 h-3.5 text-zinc-500" />
@@ -317,7 +474,6 @@ export default function RiderHomePage() {
                   <span className="text-[10px] text-zinc-600">deliveries</span>
                 </div>
 
-                {/* Distance */}
                 <div className="bg-zinc-800/60 rounded-2xl p-4 flex flex-col gap-1">
                   <div className="flex items-center gap-1.5 mb-1">
                     <Route className="w-3.5 h-3.5 text-zinc-500" />
@@ -327,7 +483,6 @@ export default function RiderHomePage() {
                   <span className="text-[10px] text-zinc-600">kilometers</span>
                 </div>
 
-                {/* Payout */}
                 <div className="bg-radium-green/10 border border-radium-green/20 rounded-2xl p-4 flex flex-col gap-1">
                   <div className="flex items-center gap-1.5 mb-1">
                     <IndianRupee className="w-3.5 h-3.5 text-radium-green" />
@@ -387,6 +542,10 @@ export default function RiderHomePage() {
                 {declining ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
                 Decline
               </button>
+
+              <p className="text-center text-[10px] text-zinc-600 mt-1">
+                Declining returns the batch to the unassigned queue.
+              </p>
             </div>
           </div>
         </div>
@@ -394,17 +553,12 @@ export default function RiderHomePage() {
     )
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
   //  ONLINE / OFFLINE TOGGLE STATE
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col font-sans">
       <style jsx global>{`
-        @keyframes pingOnce {
-          0%   { transform: scale(1);   opacity: 0.8; }
-          80%  { transform: scale(2.2); opacity: 0; }
-          100% { transform: scale(2.2); opacity: 0; }
-        }
         @keyframes breathe {
           0%, 100% { opacity: 0.4; transform: scale(1);   }
           50%       { opacity: 0.8; transform: scale(1.05);}
@@ -419,6 +573,10 @@ export default function RiderHomePage() {
           box-shadow:
             0 8px 40px rgba(0,0,0,0.4),
             inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+        @keyframes slideDown {
+          from { opacity: 0; transform: translateY(-10px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
 
@@ -448,12 +606,10 @@ export default function RiderHomePage() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Online status pill */}
-          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[10px] font-bold uppercase tracking-widest transition-all duration-500 ${
-            isOnline
+          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[10px] font-bold uppercase tracking-widest transition-all duration-500 ${isOnline
               ? 'bg-radium-green/10 border-radium-green/30 text-radium-green'
               : 'bg-zinc-900 border-white/8 text-zinc-600'
-          }`}>
+            }`}>
             <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-radium-green animate-pulse' : 'bg-zinc-700'}`} />
             {isOnline ? 'Online' : 'Offline'}
           </div>
@@ -473,10 +629,37 @@ export default function RiderHomePage() {
         </div>
       </header>
 
+      {/* GPS warning banner */}
+      {isOnline && gpsError && (
+        <div
+          className="relative z-10 mx-6 mt-2 flex items-center gap-3 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl"
+          style={{ animation: 'slideDown 0.3s ease-out' }}
+        >
+          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+          <p className="text-xs text-amber-300 font-medium flex-1">Location access blocked. Allow GPS so dispatchers can find you.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="text-[10px] font-bold text-amber-400 underline underline-offset-2 shrink-0"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Decline success notification */}
+      {declineSuccess && (
+        <div
+          className="relative z-10 mx-6 mt-2 flex items-center gap-3 px-4 py-3 bg-zinc-800 border border-white/10 rounded-2xl"
+          style={{ animation: 'slideDown 0.3s ease-out' }}
+        >
+          <CheckCircle className="w-4 h-4 text-radium-green shrink-0" />
+          <p className="text-xs text-zinc-300 font-medium">Batch declined. Waiting for the next offer…</p>
+        </div>
+      )}
+
       {/* Main body */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 pb-10">
 
-        {/* Name greeting */}
         {profile?.full_name && (
           <p className="text-zinc-500 text-sm font-medium mb-12 text-center">
             Hey, <span className="text-white font-bold">{profile.full_name}</span> 👋
@@ -485,7 +668,6 @@ export default function RiderHomePage() {
 
         {/* Big toggle button */}
         <div className="relative flex items-center justify-center mb-12">
-          {/* Ping ring (online only) */}
           {isOnline && (
             <>
               <div className="absolute w-48 h-48 rounded-full border-2 border-radium-green/20 animate-ping" style={{ animationDuration: '3s' }} />
@@ -497,11 +679,10 @@ export default function RiderHomePage() {
             id="rider-online-toggle"
             onClick={handleToggleOnline}
             disabled={toggling}
-            className={`relative w-44 h-44 rounded-full flex flex-col items-center justify-center gap-3 font-bold text-base transition-all duration-700 ease-out disabled:cursor-not-allowed ${
-              isOnline
+            className={`relative w-44 h-44 rounded-full flex flex-col items-center justify-center gap-3 font-bold text-base transition-all duration-700 ease-out disabled:cursor-not-allowed ${isOnline
                 ? 'bg-radium-green text-zinc-950 glow-btn-online scale-100 hover:scale-105'
                 : 'bg-zinc-900 border-2 border-white/10 text-white glow-btn-offline hover:border-white/20 hover:scale-105'
-            }`}
+              }`}
           >
             {toggling ? (
               <Loader2 className="w-10 h-10 animate-spin" />
@@ -526,15 +707,19 @@ export default function RiderHomePage() {
           {isOnline ? (
             <>
               <div className="flex items-center justify-center gap-2 mb-3">
-                <MapPin className="w-4 h-4 text-radium-green" />
-                <span className="text-sm font-bold text-white">Location tracking active</span>
+                <MapPin className={`w-4 h-4 ${gpsError ? 'text-amber-400' : 'text-radium-green'}`} />
+                <span className={`text-sm font-bold ${gpsError ? 'text-amber-400' : 'text-white'}`}>
+                  {gpsError ? 'GPS unavailable' : 'Location tracking active'}
+                </span>
               </div>
               <p className="text-zinc-500 text-sm leading-relaxed">
-                You're visible to dispatchers. Your location updates every 30 seconds.
-                Job offers will appear automatically.
+                You're visible to dispatchers.{' '}
+                {gpsError
+                  ? 'Enable location permissions in your browser for accurate tracking.'
+                  : 'Your location updates every 30 seconds. Job offers will appear automatically.'}
               </p>
 
-              <div className="mt-6 p-4 bg-zinc-900/60 border border-white/5 rounded-2xl flex items-center gap-3">
+              <div className="mt-6 p-4 bg-zinc-900/60 border w-fit mx-auto border-white/5 rounded-2xl flex items-center gap-3">
                 <div className="w-2 h-2 rounded-full bg-radium-green animate-pulse shrink-0" />
                 <p className="text-xs text-zinc-400 text-left">Waiting for a batch to be assigned…</p>
               </div>

@@ -18,7 +18,18 @@ export default function LoginPage() {
         const checkSession = async () => {
             const { data: { user } } = await supabase.auth.getUser()
             if (user) {
-                router.replace('/dashboard')
+                // Route based on role: riders go to rider-home, admins go to dashboard
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', user.id)
+                    .maybeSingle()
+
+                if (profile?.role === 'rider') {
+                    router.replace('/rider-home')
+                } else {
+                    router.replace('/dashboard')
+                }
             } else {
                 setChecking(false)
             }
@@ -47,8 +58,25 @@ export default function LoginPage() {
                 }
                 setLoading(false)
             } else {
-                router.refresh()
-                router.push('/dashboard')
+                // Route based on role
+                const { data: { user } } = await supabase.auth.getUser()
+                if (user) {
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('role')
+                        .eq('id', user.id)
+                        .maybeSingle()
+
+                    router.refresh()
+                    if (profile?.role === 'rider') {
+                        router.push('/rider-home')
+                    } else {
+                        router.push('/dashboard')
+                    }
+                } else {
+                    router.refresh()
+                    router.push('/dashboard')
+                }
             }
         } catch (err: any) {
             setError(err.message || 'An unexpected error occurred.')
@@ -162,7 +190,7 @@ export default function LoginPage() {
                             Forgot Password?
                         </Link>
                         <Link
-                            href="/register"
+                            href="/register/business"
                             className="text-radium-green hover:text-radium-green-hover transition-colors flex items-center gap-1"
                         >
                             Create Account
