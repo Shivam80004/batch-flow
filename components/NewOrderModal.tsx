@@ -165,32 +165,29 @@ export default function NewOrderModal({ onClose, onSaved }: NewOrderModalProps) 
     >
       {/* Panel */}
       <div
-        className="relative w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl"
-        style={{
-          background: '#ffffff',
-          border: '1px solid rgba(0,0,0,0.05)',
-        }}
+        className="relative w-full max-w-2xl rounded-[32px] overflow-hidden shadow-2xl bg-zinc-950/90 backdrop-blur-3xl border border-white/5"
       >
+        <div className="absolute inset-0 bg-gradient-to-b from-radium-green/5 to-transparent opacity-50 pointer-events-none" />
+
         {/* Header */}
         <div
-          className="flex items-center justify-between px-6 py-5"
-          style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}
+          className="relative flex items-center justify-between px-8 py-6 border-b border-white/5 bg-zinc-900/50"
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div
-              className="p-2 rounded-xl"
-              style={{ background: 'rgba(212,255,0,0.15)', border: '1px solid rgba(212,255,0,0.25)' }}
+              className="p-3 rounded-2xl bg-radium-green/10 border border-radium-green/20 relative"
             >
-              <Package className="w-5 h-5 text-radium-green" />
+              <div className="absolute inset-0 bg-radium-green/20 blur-xl rounded-full" />
+              <Package className="relative w-6 h-6 text-radium-green" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-zinc-900 tracking-tight">New Order</h2>
-              <p className="text-xs text-zinc-500 font-medium">Fill in sender &amp; receiver details</p>
+              <h2 className="text-xl font-black text-white tracking-wide">New Order</h2>
+              <p className="text-sm text-zinc-400 font-medium tracking-wide">Fill in sender & receiver details</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100 transition-all shadow-sm"
+            className="p-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-colors bg-zinc-800"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -199,20 +196,22 @@ export default function NewOrderModal({ onClose, onSaved }: NewOrderModalProps) 
 
         {/* Body */}
         {isLoaded ? (<>
-          <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+          <div className="relative p-8 space-y-8 max-h-[75vh] overflow-y-auto">
             {/* Two-column grid — collapses to single column on mobile */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative">
+
+              {/* Vertical divider (desktop only) */}
+              <div className="hidden md:block absolute left-1/2 top-4 bottom-4 w-px bg-white/5" />
 
               {/* ── SENDER ── */}
-              <section className="space-y-4">
-                <div className="flex items-center gap-2 mb-2">
+              <section className="space-y-5">
+                <div className="flex items-center gap-3 mb-4">
                   <div
-                    className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-black text-amber-600 shadow-inner"
-                    style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.2)' }}
+                    className="flex items-center justify-center w-8 h-8 rounded-full text-sm font-black text-amber-500 bg-amber-500/10 border border-amber-500/20"
                   >
                     S
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-amber-600">Sender</span>
+                  <span className="text-sm font-bold uppercase tracking-widest text-amber-500">Sender</span>
                 </div>
 
                 <Field label="Name" icon={<User className="w-4 h-4" />}>
@@ -257,19 +256,15 @@ export default function NewOrderModal({ onClose, onSaved }: NewOrderModalProps) 
                 </Field>
               </section>
 
-              {/* Vertical divider (desktop only) */}
-              <div className="hidden md:block absolute left-1/2 top-52 bottom-6 w-px bg-zinc-100" />
-
               {/* ── RECEIVER ── */}
-              <section className="space-y-4">
-                <div className="flex items-center gap-2 mb-2">
+              <section className="space-y-5">
+                <div className="flex items-center gap-3 mb-4 md:pl-4">
                   <div
-                    className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-black text-radium-green shadow-inner"
-                    style={{ background: 'rgba(212,255,0,0.15)', border: '1px solid rgba(212,255,0,0.3)' }}
+                    className="flex items-center justify-center w-8 h-8 rounded-full text-sm font-black text-radium-green bg-radium-green/10 border border-radium-green/20"
                   >
                     R
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-zinc-900">Receiver</span>
+                  <span className="text-sm font-bold uppercase tracking-widest text-radium-green">Receiver</span>
                 </div>
 
                 <Field label="Name" icon={<User className="w-4 h-4" />}>
@@ -318,23 +313,23 @@ export default function NewOrderModal({ onClose, onSaved }: NewOrderModalProps) 
             {/* Error */}
             {error && (
               <div
-                className="flex items-start gap-2 px-4 py-3 rounded-xl text-sm text-red-600 bg-red-50 border border-red-200 shadow-sm"
+                className="flex items-start gap-4 px-5 py-4 rounded-[16px] text-sm text-red-400 bg-red-500/10 border border-red-500/20 shadow-lg relative overflow-hidden"
               >
-                <X className="w-4 h-4 mt-0.5 shrink-0 text-red-500" />
-                {error}
+                <div className="absolute inset-0 bg-red-500/5 blur-xl rounded-full" />
+                <X className="w-5 h-5 mt-0.5 shrink-0 text-red-500 relative z-10" />
+                <span className="relative z-10 font-medium">{error}</span>
               </div>
             )}
           </div>
 
           {/* Footer */}
           <div
-            className="flex items-center justify-between gap-3 px-6 py-4 bg-zinc-50"
-            style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}
+            className="flex items-center justify-between gap-4 px-8 py-6 bg-zinc-900/50 border-t border-white/5 relative z-10"
           >
             <button
               onClick={onClose}
               disabled={saving}
-              className="px-6 py-3 rounded-[16px] text-sm font-bold text-zinc-600 hover:text-zinc-900 bg-white border border-zinc-200 shadow-sm hover:bg-zinc-50 transition-all disabled:opacity-50"
+              className="px-6 py-3.5 rounded-[16px] text-sm font-bold text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
@@ -343,22 +338,25 @@ export default function NewOrderModal({ onClose, onSaved }: NewOrderModalProps) 
               id="save-order-btn"
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-2 px-6 py-3 rounded-[16px] text-sm font-bold text-zinc-950 transition-all active:scale-95 disabled:opacity-60 bg-radium-green hover:bg-radium-green-hover"
+              className="flex items-center gap-3 px-8 py-3.5 rounded-[16px] text-sm font-bold text-zinc-950 transition-all active:scale-95 disabled:opacity-60 bg-radium-green hover:bg-radium-green-hover relative overflow-hidden group"
               style={{
-                boxShadow: saving ? 'none' : '0 4px 14px rgba(212,255,0,0.3)',
+                boxShadow: saving ? 'none' : '0 0 20px rgba(212,255,0,0.2)',
               }}
             >
-              {saving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving…
-                </>
-              ) : (
-                <>
-                  <Package className="w-4 h-4" />
-                  Save Order
-                </>
-              )}
+              <div className="absolute inset-0 bg-white/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative flex items-center gap-2">
+                {saving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving…
+                  </>
+                ) : (
+                  <>
+                    <Package className="w-4 h-4" />
+                    Save Order
+                  </>
+                )}
+              </div>
             </button>
           </div>
         </>) : null}
@@ -373,15 +371,17 @@ function Field({
   label,
   icon,
   children,
+  className = ""
 }: {
   label: string
   icon: React.ReactNode
   children: React.ReactNode
+  className?: string
 }) {
   return (
-    <div className="space-y-1.5">
-      <label className="flex items-center gap-1.5 text-xs font-bold text-zinc-600 uppercase tracking-wider">
-        {icon}
+    <div className={`space-y-2 relative group ${className}`}>
+      <label className="flex items-center gap-2 text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1 transition-colors group-hover:text-zinc-300">
+        <span className="text-zinc-500 group-focus-within:text-radium-green transition-colors">{icon}</span>
         {label}
       </label>
       {children}
@@ -390,7 +390,7 @@ function Field({
 }
 
 const inputClass =
-  'w-full px-4 py-3 rounded-xl text-sm text-zinc-900 placeholder-zinc-400 font-medium outline-none transition-all shadow-inner ' +
-  'bg-zinc-50 border border-zinc-200 ' +
-  'focus:border-radium-green focus:ring-4 focus:ring-radium-green/20 ' +
-  'hover:border-zinc-300'
+  'w-full px-5 py-3.5 rounded-[16px] text-sm text-white placeholder-zinc-500 font-medium outline-none transition-all ' +
+  'bg-zinc-950/80 border border-white/10 ' +
+  'focus:border-radium-green focus:bg-zinc-900 ' +
+  'hover:border-white/20'
