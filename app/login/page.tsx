@@ -16,21 +16,25 @@ export default function LoginPage() {
 
     useEffect(() => {
         const checkSession = async () => {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (user) {
-                // Route based on role: riders go to rider-home, admins go to dashboard
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', user.id)
-                    .maybeSingle()
+            try {
+                const { data: { user } } = await supabase.auth.getUser()
+                if (user) {
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('role')
+                        .eq('id', user.id)
+                        .maybeSingle()
 
-                if (profile?.role === 'rider') {
-                    router.replace('/rider-home')
+                    if (profile?.role === 'rider') {
+                        router.replace('/rider-home')
+                    } else {
+                        router.replace('/dashboard')
+                    }
                 } else {
-                    router.replace('/dashboard')
+                    setChecking(false)
                 }
-            } else {
+            } catch {
+                // Network unavailable — show the form so the user can still try
                 setChecking(false)
             }
         }
@@ -79,7 +83,11 @@ export default function LoginPage() {
                 }
             }
         } catch (err: any) {
-            setError(err.message || 'An unexpected error occurred.')
+            if (err instanceof TypeError && err.message === 'Failed to fetch') {
+                setError('Cannot reach the server. Check your internet connection and try again.')
+            } else {
+                setError(err.message || 'An unexpected error occurred.')
+            }
             setLoading(false)
         }
     }

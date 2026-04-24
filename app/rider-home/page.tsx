@@ -94,8 +94,8 @@ export default function RiderHomePage() {
         osc.start(ctx.currentTime + startAt)
         osc.stop(ctx.currentTime + startAt + duration)
       }
-      playTone(880, 0,    0.15, 0.4)  // A5 — alert
-      playTone(1100, 0.18, 0.2,  0.3)  // C#6 — resolve
+      playTone(880, 0, 0.15, 0.4)  // A5 — alert
+      playTone(1100, 0.18, 0.2, 0.3)  // C#6 — resolve
       playTone(880, 0.42, 0.25, 0.25) // A5 repeat — emphasis
     } catch {
       // AudioContext may be unavailable in some environments — silent fail
@@ -557,7 +557,7 @@ export default function RiderHomePage() {
   //  ONLINE / OFFLINE TOGGLE STATE
   // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col font-sans">
+    <div className="min-h-screen bg-zinc-950 flex flex-col font-sans overflow-hidden">
       <style jsx global>{`
         @keyframes breathe {
           0%, 100% { opacity: 0.4; transform: scale(1);   }
@@ -607,8 +607,8 @@ export default function RiderHomePage() {
 
         <div className="flex items-center gap-3">
           <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[10px] font-bold uppercase tracking-widest transition-all duration-500 ${isOnline
-              ? 'bg-radium-green/10 border-radium-green/30 text-radium-green'
-              : 'bg-zinc-900 border-white/8 text-zinc-600'
+            ? 'bg-radium-green/10 border-radium-green/30 text-radium-green'
+            : 'bg-zinc-900 border-white/8 text-zinc-600'
             }`}>
             <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-radium-green animate-pulse' : 'bg-zinc-700'}`} />
             {isOnline ? 'Online' : 'Offline'}
@@ -680,8 +680,8 @@ export default function RiderHomePage() {
             onClick={handleToggleOnline}
             disabled={toggling}
             className={`relative w-44 h-44 rounded-full flex flex-col items-center justify-center gap-3 font-bold text-base transition-all duration-700 ease-out disabled:cursor-not-allowed ${isOnline
-                ? 'bg-radium-green text-zinc-950 glow-btn-online scale-100 hover:scale-105'
-                : 'bg-zinc-900 border-2 border-white/10 text-white glow-btn-offline hover:border-white/20 hover:scale-105'
+              ? 'bg-radium-green text-zinc-950 glow-btn-online scale-100 hover:scale-105'
+              : 'bg-zinc-900 border-2 border-white/10 text-white glow-btn-offline hover:border-white/20 hover:scale-105'
               }`}
           >
             {toggling ? (

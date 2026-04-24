@@ -23,7 +23,7 @@ export default function RootLayout({
       lang="en"
       className={`${jakarta.variable} h-full antialiased light`}
     >
-      <body className="min-h-full flex flex-col font-sans bg-zinc-100 text-zinc-900 selection:bg-[#cfff04]/30 selection:text-zinc-900">{children}</body>
+      <body className="min-h-full flex flex-col font-popins bg-zinc-100 text-zinc-900 selection:bg-[#cfff04]/30 selection:text-zinc-900">{children}</body>
     </html>
   );
 }

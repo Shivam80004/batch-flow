@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/utils/supabase/client'
 import { parsePoint } from '@/utils/routing'
+import SwipeToConfirm from '@/components/SwipeToConfirm'
 import {
   calculateOptimizedSequence,
   haversineDistance,
@@ -511,7 +512,7 @@ export default function RiderPage({ params }: PageProps) {
     .filter((_, i) => i !== activeIndex)
 
   return (
-    <div className="min-h-screen bg-zinc-50 flex items-center justify-center font-sans selection:bg-radium-green/30">
+    <div className="min-h-screen overflow-hidden bg-zinc-50 flex items-center justify-center font-sans selection:bg-radium-green/30">
       <style jsx global>{`
         @keyframes fadeSlideUp {
           from { opacity: 0; transform: translateY(24px); }
@@ -760,29 +761,16 @@ export default function RiderPage({ params }: PageProps) {
                         </div>
 
                         {/* Action buttons */}
-                        <div className="space-y-3 flex pt-4 relative z-10">
+                        <div className="flex flex-col w-full pt-4 gap-3 relative z-10">
 
-                          {/* Swipe/Confirm */}
-                          <button
-                            onClick={() =>
+                          {/* Swipe-to-confirm */}
+                          <SwipeToConfirm
+                            label={isCollecting ? 'Swipe to Confirm' : 'Swipe to Confirm'}
+                            loading={updatingId === order.id}
+                            onConfirm={() =>
                               isCollecting ? markPickedUp(order.id) : markDelivered(order.id)
                             }
-                            disabled={updatingId === order.id}
-                            className="relative flex items-center justify-center gap-2 w-full py-4 bg-radium-green text-zinc-950 hover:bg-radium-green-hover rounded-[20px] font-bold text-sm transition-all overflow-hidden group shadow-[0_4px_24px_rgba(212,255,0,0.2)] disabled:opacity-70 disabled:cursor-not-allowed"
-                          >
-                            <div className="absolute inset-0 swipe-shimmer opacity-30" />
-                            {updatingId === order.id ? (
-                              <div className="flex items-center justify-center gap-2 relative z-10 text-zinc-950">
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                                <span>Updating...</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center justify-center gap-2 relative z-10 tracking-wide text-zinc-950">
-                                <CheckCircle className="w-5 h-5" />
-                                <span>{isCollecting ? 'Confirm Pickup' : 'Confirm Delivery'}</span>
-                              </div>
-                            )}
-                          </button>
+                          />
 
                           {/* <div className={`flex w-fit  gap-2.5 ${isCollecting && (order as any).business_phone ? 'flex-row' : ''}`}>
                             <a

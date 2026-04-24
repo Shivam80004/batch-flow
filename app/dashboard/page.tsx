@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import {
   PlusCircle, RefreshCw, PackagePlus,
   Box, User, LogOut, X, Layers, ChevronRight,
-  Radio, IndianRupee, CheckCircle2, Zap, Clock
+  Radio, IndianRupee, CheckCircle2, Zap, Clock,
+  Wand2
 } from 'lucide-react'
 import { supabase } from '@/utils/supabase/client'
 import NewOrderModal from '@/components/NewOrderModal'
@@ -59,6 +60,9 @@ export default function Dashboard() {
   const [dispatchLoading, setDispatchLoading] = useState(false)
   const [dispatching, setDispatching] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+
+  // Auto-assign: tracks which batch is currently being auto-dispatched
+  const [autoAssigning, setAutoAssigning] = useState<Record<string, boolean>>({})
 
   // Payout rate setting
   const [payoutRate, setPayoutRate] = useState<number>(8)
@@ -276,6 +280,40 @@ export default function Dashboard() {
       setToast(`Dispatch failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setDispatching(false)
+    }
+  }
+
+  // ── Auto-assign nearest rider (Magic Wand) ───────────────────────────────
+  const autoAssignBatch = async (batchId: string) => {
+    setAutoAssigning((prev) => ({ ...prev, [batchId]: true }))
+    try {
+      const res = await fetch('/api/batches/auto-assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batchId }),
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        setToast(`Auto-assign failed: ${data.error || 'Unknown error'}`)
+        return
+      }
+
+      // Optimistic: remove from unassigned list immediately
+      setUnassignedBatches((prev) => prev.filter((b) => b.id !== batchId))
+      setOnlineRiders((prev) => prev.filter((r) => r.id !== data.riderId))
+      if (selectedBatchId === batchId) setSelectedBatchId(null)
+
+      const dist = data.distanceKm ? ` (${data.distanceKm} km away)` : ''
+      setToast(`Batch ${shortId(batchId)} assigned to ${data.riderName}${dist} ✨`)
+    } catch (err) {
+      setToast('Network error — could not auto-assign')
+    } finally {
+      setAutoAssigning((prev) => {
+        const next = { ...prev }
+        delete next[batchId]
+        return next
+      })
     }
   }
 
@@ -677,37 +715,73 @@ export default function Dashboard() {
                     ) : (
                       unassignedBatches.map((batch) => {
                         const isSelected = selectedBatchId === batch.id
+                        const isAutoAssigning = !!autoAssigning[batch.id]
                         return (
-                          <button
-                            key={batch.id}
-                            id={`batch-card-${batch.id.slice(-4)}`}
-                            onClick={() => setSelectedBatchId(isSelected ? null : batch.id)}
-                            className={`w-full text-left px-5 py-5 rounded-[20px] transition-all flex items-center gap-4 group relative overflow-hidden ${isSelected
-                              ? 'bg-radium-green/10 border border-radium-green/40 shadow-[0_0_20px_rgba(212,255,0,0.05)]'
-                              : 'bg-zinc-800/50 border border-white/5 hover:bg-zinc-800 hover:border-white/10'
-                              }`}
-                          >
-                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${isSelected ? 'bg-radium-green text-zinc-950' : 'bg-zinc-900 border border-white/5 text-zinc-400'
+                          <div key={batch.id} className="relative group/wrap">
+                            <button
+                              id={`batch-card-${batch.id.slice(-4)}`}
+                              onClick={() => !isAutoAssigning && setSelectedBatchId(isSelected ? null : batch.id)}
+                              className={`w-full text-left px-5 py-5 rounded-[20px] transition-all flex items-center gap-4 group relative overflow-hidden ${isAutoAssigning
+                                ? 'bg-indigo-500/10 border border-indigo-500/30 cursor-wait'
+                                : isSelected
+                                  ? 'bg-radium-green/10 border border-radium-green/40 shadow-[0_0_20px_rgba(212,255,0,0.05)]'
+                                  : 'bg-zinc-800/50 border border-white/5 hover:bg-zinc-800 hover:border-white/10'
+                                }`}
+                            >
+                              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-all ${
+                                isAutoAssigning
+                                  ? 'bg-indigo-500/20 border border-indigo-500/30 animate-pulse'
+                                  : isSelected
+                                    ? 'bg-radium-green text-zinc-950'
+                                    : 'bg-zinc-900 border border-white/5 text-zinc-400'
                               }`}>
-                              <Box className="w-6 h-6" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-3 mb-1.5">
-                                <span className="font-black text-base text-white tracking-wide">{shortId(batch.id)}</span>
-                                <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-lg uppercase tracking-wider">Unassigned</span>
+                                {isAutoAssigning
+                                  ? <RefreshCw className="w-5 h-5 text-indigo-400 animate-spin" />
+                                  : <Box className="w-6 h-6" />
+                                }
                               </div>
-                              <p className="text-[11px] text-zinc-500 font-medium">
-                                Created {new Date(batch.created_at).toLocaleString()}
-                              </p>
-                            </div>
-                            <div className="shrink-0 flex items-center justify-center w-8 h-8">
-                              {isSelected ? (
-                                <CheckCircle2 className="w-6 h-6 text-radium-green" />
-                              ) : (
-                                <div className="w-5 h-5 rounded-full border-2 border-zinc-600 group-hover:border-zinc-400 transition-colors" />
-                              )}
-                            </div>
-                          </button>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-3 mb-1.5">
+                                  <span className="font-black text-base text-white tracking-wide">{shortId(batch.id)}</span>
+                                  {isAutoAssigning ? (
+                                    <span className="text-[10px] font-bold text-indigo-400 bg-indigo-400/10 border border-indigo-400/20 px-2 py-0.5 rounded-lg uppercase tracking-wider animate-pulse">Finding rider…</span>
+                                  ) : (
+                                    <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-lg uppercase tracking-wider">Unassigned</span>
+                                  )}
+                                </div>
+                                <p className="text-[11px] text-zinc-500 font-medium">
+                                  {isAutoAssigning ? 'Scanning nearest available rider…' : `Created ${new Date(batch.created_at).toLocaleString()}`}
+                                </p>
+                              </div>
+                              <div className="shrink-0 flex items-center justify-center w-8 h-8">
+                                {isAutoAssigning ? (
+                                  <span className="relative flex h-3 w-3">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500" />
+                                  </span>
+                                ) : isSelected ? (
+                                  <CheckCircle2 className="w-6 h-6 text-radium-green" />
+                                ) : (
+                                  <div className="w-5 h-5 rounded-full border-2 border-zinc-600 group-hover:border-zinc-400 transition-colors" />
+                                )}
+                              </div>
+                            </button>
+
+                            {/* Magic Wand auto-assign button */}
+                            <button
+                              id={`auto-assign-${batch.id.slice(-4)}`}
+                              onClick={(e) => { e.stopPropagation(); autoAssignBatch(batch.id) }}
+                              disabled={isAutoAssigning}
+                              title="Auto-assign nearest rider"
+                              className={`absolute right-[72px] top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl flex items-center justify-center transition-all border shadow-lg z-10 ${
+                                isAutoAssigning
+                                  ? 'opacity-0 pointer-events-none'
+                                  : 'opacity-0 group-hover/wrap:opacity-100 bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20 hover:border-indigo-500/50 hover:scale-110'
+                              }`}
+                            >
+                              <Wand2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         )
                       })
                     )}
